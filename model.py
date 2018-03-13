@@ -143,9 +143,15 @@ class Model:
             # d = tf.cond(d_scat < d_abs, lambda: d_scat, lambda: d_abs)
             d = tf.where(d_scat < d_abs, d_scat, d_abs)
 
+            # calculate the potential next scattering point
+            r_next = r + d*v
+
+            # check for hit
+            t = self._detector.tf_check_for_hit(r, r_next)
+
             # propagate
-            d_abs -= d
-            r += d*v
+            d_abs = tf.where(t < 1., 0., d_abs - d)
+            r += d*v*t
 
             # scatter
             v = self.tf_scatter(v)

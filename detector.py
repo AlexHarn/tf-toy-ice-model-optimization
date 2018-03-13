@@ -1,5 +1,7 @@
 from __future__ import division
 import numpy as np
+import tensorflow as tf
+import settings
 
 
 class Detector:
@@ -39,10 +41,10 @@ class Detector:
                               range(doms_per_string)])
 
     # -------------------------- TF Graph Building ----------------------------
-    def tf_check_for_hits(self, r1, r2):
+    def tf_check_for_hit(self, r1, r2):
         """
         Builds the subgraph to check if the line between r1 and r2 hits a DOM.
-        If a hit occurs it is saved in the hitlist.
+        If a hit occurs the according scale factor < 1 is returned.
 
         Parameters
         ----------
@@ -53,5 +55,20 @@ class Detector:
 
         Returns
         -------
+        Scale factor t so that r += d*v*t is the point of the hit. Or t = 1 if
+        no hit occurs.
         """
-        # TODO: Implement box intersection check
+        # TODO: Find a better way. This is horribly slow...
+        x2x1diff = tf.tile([r2 - r1], [len(self.doms), 1])
+        x2x1diffnorm = tf.norm(x2x1diff, axis=1)
+        x1 = tf.tile([r1], [len(self.doms), 1])
+        x1x0diff = x1 - self.doms
+
+        ds = tf.norm(tf.cross(x2x1diff, x1x0diff), axis=1)/x2x1diffnorm
+        ts = -tf.einsum('ij,ij->i', x1x0diff, x2x1diff)/tf.square(x2x1diffnorm)
+
+        t = -tf.reduce_max(-tf.where(
+            tf.logical_and(tf.logical_and(ds < self._dom_radius, ts > 0), ts <
+                           1), ts, tf.ones(len(self.doms),
+                                           dtype=settings.FLOAT_PRECISION)))
+        return t

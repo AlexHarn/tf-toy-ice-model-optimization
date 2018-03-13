@@ -14,7 +14,10 @@ if __name__ == '__main__':
     ice_pred = Ice(trainable=True)
     ice_pred.homogeneous_init(l_abs=80, l_scat=20)
 
-    detector = Detector()
+    detector = Detector(dom_radius=settings.DOM_RADIUS,
+                        nx_strings=settings.NX_STRINGS,
+                        ny_strings=settings.NY_STRINGS,
+                        doms_per_string=settings.DOMS_PER_STRING)
 
     model_true = Model(ice_true, detector)
     model_pred = Model(ice_pred, detector)

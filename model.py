@@ -92,19 +92,31 @@ class Model:
         v = tf.cross([sinT*tf.cos(phi), sinT*tf.sin(phi), tf.cos(theta)], r)
         return v/tf.norm(v)
 
-    def tf_scatter(self, r):
+    def tf_scatter(self, v):
+        """
+        Scatter the given direction tensor v.
+
+        Parameters
+        ----------
+        v : TF tensor, 3d vector
+            Direction vector of the photon which is being scattered
+
+        Returns
+        -------
+        The scattered direction tensor
+        """
         # sample cos(theta)
         cosT = 2*self._uni_pdf.sample(1)[0]**(1/19) - 1
         cosT2 = tf.sqrt((cosT + 1)/2)
         sinT2 = tf.sqrt((1 - cosT)/2)
 
-        v = self.tf_sample_normal_vector(r)*sinT2
-        # ignore the fact that v could be parallel to r, what's the probability
+        n = self.tf_sample_normal_vector(v)*sinT2
+        # ignore the fact that n could be parallel to v, what's the probability
         # of that happening?
 
-        q = tfq.Quaternion([cosT2, v[0], v[1], v[2]])
+        q = tfq.Quaternion([cosT2, n[0], n[1], n[2]])
 
-        return tfq.quaternion_to_vector3d(q*tfq.vector3d_to_quaternion(r)/q)
+        return tfq.quaternion_to_vector3d(q*tfq.vector3d_to_quaternion(v)/q)
 
     def tf_propagate(self, r, v):
         """

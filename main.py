@@ -3,40 +3,51 @@ import tensorflow as tf
 from ice import Ice
 from detector import Detector
 from model import Model
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.pyplot as plt
+import settings
 
 
 if __name__ == '__main__':
     # ---------------------------- Initialization -----------------------------
-    ice = Ice()
-    ice.homogeneous_init()
-    detector = Detector()
-    model = Model(ice, detector)
+    ice_true = Ice()
+    ice_true.homogeneous_init()
 
-    # initialize a very weak cascade in the middle of the detector
-    model.init_cascade(500, 500, 500, n_photons=1000)
+    ice_pred = Ice(trainable=True)
+    ice_pred.homogeneous_init(l_abs=80, l_scat=20)
+
+    detector = Detector()
+
+    model_true = Model(ice_true, detector)
+    model_pred = Model(ice_pred, detector)
 
     # setup TensorFLow, use CPU only for now
-    config = tf.ConfigProto(device_count={'GPU': 0})
+    if settings.CPU_ONLY:
+        config = tf.ConfigProto(device_count={'GPU': 0})
+        session = tf.Session(config=config)
+    else:
+        session = tf.Session()
 
-    session = tf.Session(config=config)
+    # define loss
+    mean_true, std_true = tf.nn.moments(model_true.final_positions, axes=1)
+    mean_pred, std_pred = tf.nn.moments(model_pred.final_positions, axes=1)
+    loss = tf.squared_difference(mean_true, mean_pred) + \
+        tf.squared_difference(std_true, std_pred)
+
+    # init optimizer
+    optimizer = \
+        tf.train.AdamOptimizer(
+            learning_rate=settings.LEARNING_RATE).minimize(loss)
+
+    # init variables
     session.run(tf.global_variables_initializer())
 
     # --------------------------------- Run -----------------------------------
-    result = session.run(model.final_positions, feed_dict={**model.feed_dict})
-    print(result)
+    print("Starting training...")
+    for i in range(1000000000):
+        model_true.init_cascade(500, 500, 500, settings.N_PHOTONS)
+        model_pred.init_cascade(500, 500, 500, settings.N_PHOTONS)
+        result = session.run([optimizer, ice_pred._l_abs, ice_pred._l_scat],
+                             feed_dict={**model_true.feed_dict,
+                                        **model_pred.feed_dict})
 
-    # visualize result for debugging
-    # TODO: visualizer class with DOM plotting
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection=Axes3D.name)
-    # draw photons
-    ax.scatter(result[:, 0], result[:, 1], result[:, 2], marker='.')
-    ax.set_xlim(0, 1000)
-    ax.set_ylim(0, 1000)
-    ax.set_zlim(0, 1000)
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
-    ax.set_zlabel('z')
-    plt.show()
+        print(('[{:08d}] l_abs_pred: {:2.3f} l_scat_pred: {:2.3f}')
+              .format(i, *result[1:]))

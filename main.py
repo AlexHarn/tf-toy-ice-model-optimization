@@ -27,8 +27,8 @@ if __name__ == '__main__':
         session = tf.Session()
 
     # define loss
-    mean_true, std_true = tf.nn.moments(model_true.final_positions, axes=1)
-    mean_pred, std_pred = tf.nn.moments(model_pred.final_positions, axes=1)
+    mean_true, std_true = tf.nn.moments(model_true.final_positions, axes=0)
+    mean_pred, std_pred = tf.nn.moments(model_pred.final_positions, axes=0)
     loss = tf.squared_difference(mean_true, mean_pred) + \
         tf.squared_difference(std_true, std_pred)
 

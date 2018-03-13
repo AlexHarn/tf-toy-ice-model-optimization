@@ -40,17 +40,23 @@ if __name__ == '__main__':
         tf.train.AdamOptimizer(
             learning_rate=settings.LEARNING_RATE).minimize(loss)
 
+    hits = detector.tf_count_hits(model_true.final_positions)
     # init variables
     session.run(tf.global_variables_initializer())
 
     # --------------------------------- Run -----------------------------------
     print("Starting training...")
-    for i in range(1000000000):
-        model_true.init_cascade(500, 500, 500, settings.N_PHOTONS)
-        model_pred.init_cascade(500, 500, 500, settings.N_PHOTONS)
-        result = session.run([optimizer, ice_pred._l_abs, ice_pred._l_scat],
-                             feed_dict={**model_true.feed_dict,
-                                        **model_pred.feed_dict})
+    model_true.init_cascade(500, 500, 500, settings.N_PHOTONS)
+    model_pred.init_cascade(500, 500, 500, settings.N_PHOTONS)
+    print(session.run([optimizer, hits],
+                      feed_dict={**model_true.feed_dict,
+                                 **model_pred.feed_dict})[1])
+    # for i in range(1000000000):
+        # model_true.init_cascade(500, 500, 500, settings.N_PHOTONS)
+        # model_pred.init_cascade(500, 500, 500, settings.N_PHOTONS)
+        # result = session.run([optimizer, ice_pred._l_abs, ice_pred._l_scat],
+                             # feed_dict={**model_true.feed_dict,
+                                        # **model_pred.feed_dict})
 
-        print(('[{:08d}] l_abs_pred: {:2.3f} l_scat_pred: {:2.3f}')
-              .format(i, *result[1:]))
+        # print(('[{:08d}] l_abs_pred: {:2.3f} l_scat_pred: {:2.3f}')
+              # .format(i, *result[1:]))

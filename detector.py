@@ -78,13 +78,13 @@ class Detector:
                            axis=-1)
         return t
 
-    def tf_count_hits(self, final_positions):
+    def tf_soft_count_hits(self, final_positions):
         """
         Counts the hits for each DOM using softsign for differentiability.
 
         Parameters
         ----------
-        final_positions : tf tensor of shape (NUM_PHOTONS, 3)
+        final_positions : tf tensor of shape (?, 3)
             The final positions after every photon has been absorbed or hit a
             DOM.
 
@@ -100,4 +100,28 @@ class Detector:
             hitlist.append(
                 tf.reduce_sum(-tf.nn.softsign((d - self._dom_radius)*10000) +
                               1)/2)
+        return hitlist
+
+    def tf_count_hits(self, final_positions):
+        """
+        Counts the hits for each DOM exactly, which is not differentiable.
+
+        Parameters
+        ----------
+        final_positions : tf tensor of shape (?, 3)
+            The final positions after every photon has been absorbed or hit a
+            DOM.
+
+        Returns
+        -------
+        The DOM hitlist which contains the number of hits for each DOM as a
+        tensorflow variable.
+        """
+        # calculate distances of every photon to every DOM
+        hitlist = []
+        for dom in self.doms:
+            d = tf.norm(final_positions - dom, axis=1)
+            hitlist.append(tf.reduce_sum(tf.where(d <= self._dom_radius,
+                                                  tf.ones(tf.shape(d)[0]),
+                                                  tf.zeros(tf.shape(d)[0]))))
         return hitlist

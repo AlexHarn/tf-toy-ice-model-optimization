@@ -29,10 +29,10 @@ if __name__ == '__main__':
     model_true = Model(ice_true, detector)
     model_pred = Model(ice_pred, detector)
 
-    # setup TensorFLow, use CPU only for now
     if settings.CPU_ONLY:
         config = tf.ConfigProto(device_count={'GPU': 0})
     else:
+        # don't allocate the entire vRAM initially
         config = tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True))
     session = tf.Session(config=config)
 
@@ -47,15 +47,16 @@ if __name__ == '__main__':
         tf.train.AdamOptimizer(
             learning_rate=settings.LEARNING_RATE).minimize(loss)
 
-    hits = detector.tf_count_hits(model_true.final_positions)
-    final_positions = model_true.final_positions
+    hits_true = detector.tf_count_hits(model_true.final_positions)
+    hits_pred = detector.tf_soft_count_hits(model_pred.final_positions)
+
     # init variables
     session.run(tf.global_variables_initializer())
 
     # --------------------------------- Run -----------------------------------
     print("Starting...")
     r_cascade = [50, 50, 25]
-    r = session.run([optimizer, hits, final_positions],
+    r = session.run([optimizer, hits_true, hits_pred],
                     feed_dict={model_true.r_cascade: r_cascade,
                                model_pred.r_cascade: r_cascade})
-    print(r[1])
+    print(r[1:])

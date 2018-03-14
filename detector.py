@@ -126,13 +126,27 @@ class Detector:
         The DOM hitlist which contains a tensorflow variable for each DOM as a
         measure for the number of photons that ended up inside the DOM.
         """
-        # calculate distances of every photon to every DOM
-        hitlist = []
-        for dom in self.doms:
-            d = tf.norm(final_positions - dom, axis=1)
-            hitlist.append(
-                tf.reduce_sum(-tf.nn.softsign((d - self._dom_radius)*10000) +
-                              1)/2)
+
+        # TODO: change vectors to dimension [batch, dom, coordinate]
+        #       get rid of expand and squeze
+        final_positions_exp = tf.expand_dims(final_positions, axis=1)
+
+        # Maybe save self.doms directly as tf.constant or additionally?
+        tf_doms = tf.constant( np.expand_dims( self.doms, axis=0), 
+                               dtype=settings.FLOAT_PRECISION)
+
+        ds = tf.norm( final_positions_exp - tf_doms, axis=2)
+        hitlist = tf.reduce_sum(
+                        -tf.nn.softsign((ds - self._dom_radius)*10000) + 1,
+                        axis=0) / 2
+
+        # # calculate distances of every photon to every DOM
+        # hitlist = []
+        # for dom in self.doms:
+        #     d = tf.norm(final_positions - dom, axis=1)
+        #     hitlist.append(
+        #         tf.reduce_sum(-tf.nn.softsign((d - self._dom_radius)*10000) +
+        #                       1)/2)
         return hitlist
 
     def tf_count_hits(self, final_positions):
@@ -150,11 +164,26 @@ class Detector:
         The DOM hitlist which contains the number of hits for each DOM as a
         tensorflow variable.
         """
-        # calculate distances of every photon to every DOM
-        hitlist = []
-        for dom in self.doms:
-            d = tf.norm(final_positions - dom, axis=1)
-            hitlist.append(tf.reduce_sum(tf.where(d <= self._dom_radius,
-                                                  tf.ones(d.get_shape()[0]),
-                                                  tf.zeros(d.get_shape()[0]))))
+
+        # TODO: change vectors to dimension [batch, dom, coordinate]
+        #       get rid of expand and squeze
+        final_positions_exp = tf.expand_dims(final_positions, axis=1)
+
+        # Maybe save self.doms directly as tf.constant or additionally?
+        tf_doms = tf.constant( np.expand_dims( self.doms, axis=0), 
+                               dtype=settings.FLOAT_PRECISION)
+
+        ds = tf.norm( final_positions_exp - tf_doms, axis=2)
+        hitlist = tf.reduce_sum(tf.where(ds <= self._dom_radius,
+                                                  tf.ones_like(ds),
+                                                  tf.zeros_like(ds)),
+                                axis=0)
+
+        # # calculate distances of every photon to every DOM
+        # hitlist = []
+        # for dom in self.doms:
+        #     d = tf.norm(final_positions - dom, axis=1)
+        #     hitlist.append(tf.reduce_sum(tf.where(d <= self._dom_radius,
+        #                                           tf.ones(d.get_shape()[0]),
+        #                                           tf.zeros(d.get_shape()[0]))))
         return hitlist

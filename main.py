@@ -45,9 +45,7 @@ if __name__ == '__main__':
     hits_pred = detector.tf_soft_count_hits(model_pred.final_positions)
 
     # define loss
-    loss = tf.reduce_sum([tf.squared_difference(dom_hits_true, dom_hits_pred)
-                          for (dom_hits_true, dom_hits_pred)
-                          in zip(hits_true, hits_pred)])
+    loss = tf.reduce_sum(tf.squared_difference(hits_true, hits_pred))
 
     # init optimizer
     optimizer = \

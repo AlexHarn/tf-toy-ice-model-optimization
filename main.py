@@ -5,8 +5,6 @@ from ice import Ice
 from detector import Detector
 from model import Model
 import settings
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.pyplot as plt
 
 
 if __name__ == '__main__':
@@ -56,9 +54,8 @@ if __name__ == '__main__':
 
     # --------------------------------- Run -----------------------------------
     print("Starting...")
-    model_true.init_cascade(50, 50, 25, settings.N_PHOTONS)
-    model_pred.init_cascade(50, 50, 25, settings.N_PHOTONS)
-    feed_dict = model_true.feed_dict
-    feed_dict.update(model_pred.feed_dict)
-    r = session.run([optimizer, hits, final_positions], feed_dict=feed_dict)
+    r_cascade = [50, 50, 25]
+    r = session.run([optimizer, hits, final_positions],
+                    feed_dict={model_true.r_cascade: r_cascade,
+                               model_pred.r_cascade: r_cascade})
     print(r[1])

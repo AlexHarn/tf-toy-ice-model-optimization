@@ -26,47 +26,32 @@ class Model:
         self._ice = ice
         self._detector = detector
 
-        # define the computational graph
-        self._r0 = tf.placeholder(settings.FLOAT_PRECISION, shape=(None, 3))
-        self._v0 = tf.placeholder(settings.FLOAT_PRECISION, shape=(None, 3))
+        # start defining the computational graph
+        self.r_cascade = tf.placeholder(settings.FLOAT_PRECISION, shape=(3))
 
         # init uniform pdf
         self._uni_pdf = tf.distributions.Uniform()
 
+        # init cascade
+        self.tf_init_cascade()
+
         # propagate
         self.final_positions = self.tf_propagate(self._r0, self._v0)
 
-    def init_cascade(self, x, y, z, n_photons=10000):
+    def tf_init_cascade(self):
         """
-        Initializes a cascade at position (x, y, z). All photons start at
-        exactly this initial position. The initial directions a sampled
-        uniformly.
-
-        Parameters
-        ----------
-        x : float
-            x coordinate of the cascade.
-        y : float
-            y coordinate of the cascade.
-        z : float
-            z coordinate of the cascade.
-        n_photons : integer
-            Number of photons to initialize.
+        Builds the subgraph to initializes a cascade at position
+        self.r_cascade. All photons start at exactly this initial position. The
+        initial directions are sampled uniformly.
         """
-        self.r0 = np.zeros(shape=((n_photons, 3)), dtype=np.float)
-        self.v0 = np.zeros(shape=((n_photons, 3)), dtype=np.float)
+        self._r0 = tf.tile([self.r_cascade], [settings.N_PHOTONS, 1])
 
-        self.r0[:, 0] = x
-        self.r0[:, 1] = y
-        self.r0[:, 2] = z
+        thetas = self._uni_pdf.sample(settings.N_PHOTONS)*np.pi
+        phis = self._uni_pdf.sample(settings.N_PHOTONS)*2*np.pi
+        sinTs = tf.sin(thetas)
 
-        thetas = np.random.uniform(0, np.pi, size=n_photons)
-        phis = np.random.uniform(0, 2*np.pi, size=n_photons)
-        sinTs = np.sin(thetas)
-
-        self.v0[:, 0] = sinTs*np.cos(phis)
-        self.v0[:, 1] = sinTs*np.sin(phis)
-        self.v0[:, 2] = np.cos(thetas)
+        self._v0 = tf.transpose([sinTs*tf.cos(phis), sinTs*tf.sin(phis),
+                                 tf.cos(thetas)])
 
     # ------------------------------ Simulation -------------------------------
     def tf_sample_normal_vectors(self, r):
@@ -170,18 +155,3 @@ class Model:
             lambda d_abs, r, v: tf.less(0., tf.norm(d_abs)),
             lambda d_abs, r, v: body(d_abs, r, v),
             [self._ice.tf_sample_absorbtion(r), r, v])[1]
-
-    # ------------------------------ Properties -------------------------------
-    @property
-    def feed_dict(self):
-        """
-        Returns the feed_dict for the TensorFlow session.
-        """
-        if not (hasattr(self, 'r0') and hasattr(self, 'v0')):
-            raise NoPhotonsInitializedException("Photons have to be "
-                                                "initialized first!")
-        return {self._r0: self.r0, self._v0: self.v0}
-
-
-class NoPhotonsInitializedException(Exception):
-    pass

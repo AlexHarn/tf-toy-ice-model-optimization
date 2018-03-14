@@ -1,6 +1,5 @@
 from __future__ import division
 import tensorflow as tf
-import numpy as np
 from ice import Ice
 from detector import Detector
 from model import Model
@@ -11,13 +10,15 @@ if __name__ == '__main__':
     # ---------------------------- Initialization -----------------------------
     if settings.RANDOM_SEED:
         tf.set_random_seed(settings.RANDOM_SEED)
-        np.random.seed(settings.RANDOM_SEED)
+
+    # initialize the ice
     ice_true = Ice()
     ice_true.homogeneous_init()
 
     ice_pred = Ice(trainable=True)
     ice_pred.homogeneous_init(l_abs=80, l_scat=20)
 
+    # initialize the detector
     detector = Detector(dom_radius=settings.DOM_RADIUS,
                         nx_strings=settings.NX_STRINGS,
                         ny_strings=settings.NY_STRINGS,
@@ -26,6 +27,7 @@ if __name__ == '__main__':
                         l_y=settings.LENGTH_Y,
                         l_z=settings.LENGTH_Z)
 
+    # initialize the models
     model_true = Model(ice_true, detector)
     model_pred = Model(ice_pred, detector)
 
@@ -36,27 +38,36 @@ if __name__ == '__main__':
         config = tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True))
     session = tf.Session(config=config)
 
+    # define hitlists
+    hits_true = detector.tf_count_hits(model_true.final_positions)
+    hits_pred = detector.tf_soft_count_hits(model_pred.final_positions)
+
     # define loss
-    mean_true, std_true = tf.nn.moments(model_true.final_positions, axes=0)
-    mean_pred, std_pred = tf.nn.moments(model_pred.final_positions, axes=0)
-    loss = tf.squared_difference(mean_true, mean_pred) + \
-        tf.squared_difference(std_true, std_pred)
+    # loss = tf.reduce_sum([tf.squared_difference(dom_hits_true, dom_hits_pred)
+                          # for (dom_hits_true, dom_hits_pred)
+                          # in zip(hits_true, hits_pred)])
+    loss = tf.abs(hits_true[12] - hits_pred[12])
 
     # init optimizer
     optimizer = \
         tf.train.AdamOptimizer(
             learning_rate=settings.LEARNING_RATE).minimize(loss)
 
-    hits_true = detector.tf_count_hits(model_true.final_positions)
-    hits_pred = detector.tf_soft_count_hits(model_pred.final_positions)
-
+    # gradient = tf.gradients(loss, [ice_pred._l_abs, ice_pred._l_scat])
+    gradient = tf.gradients(model_pred.final_positions, [ice_pred._l_abs,
+                                                         ice_pred._l_scat])
     # init variables
     session.run(tf.global_variables_initializer())
 
     # --------------------------------- Run -----------------------------------
     print("Starting...")
     r_cascade = [50, 50, 25]
-    r = session.run([optimizer, hits_true, hits_pred],
-                    feed_dict={model_true.r_cascade: r_cascade,
-                               model_pred.r_cascade: r_cascade})
-    print(r[1:])
+    for i in range(100000000):
+        result = session.run([optimizer, gradient, hits_true, hits_pred, loss,
+                              ice_pred._l_abs, ice_pred._l_scat],
+                             feed_dict={model_true.r_cascade: r_cascade,
+                                        model_pred.r_cascade: r_cascade})
+
+        print(result[1], result[2][12], result[3][12], result[4])
+        # print(("[{:08d}] loss: {:2.3f} l_abs_pred: {:2.3f} l_scat_pred:"
+               # " {:2.3f}") .format(i, *result[4:]))

@@ -137,13 +137,13 @@ class Model:
             r_next = r + tf.expand_dims(d, axis=-1)*v
 
             # check for hits
-            t = self._detector.tf_check_for_hits(r, r_next)
+            t = self._detector.tf_check_for_hits(r, r_next, v)
 
             # propagate
             d_abs = tf.where(t < 1., tf.zeros(tf.shape(d),
                                               dtype=settings.FLOAT_PRECISION),
                              d_abs - d)
-            d_abs -= d
+            #d_abs -= d
             r = r + tf.expand_dims(d*t, axis=-1)*v
 
             # scatter

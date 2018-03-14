@@ -40,7 +40,7 @@ class Detector:
                               range(doms_per_string)])
 
     # -------------------------- TF Graph Building ----------------------------
-    def tf_check_for_hits(self, r1, r2):
+    def tf_check_for_hits(self, r1, r2, v):
         """
         Builds the subgraph to check if the lines between r1 and r2 hit DOMs.
         If a hit occurs the according scale factor < 1 is returned.
@@ -51,30 +51,63 @@ class Detector:
             Starting points of the lines.
         r2 : TF tensor, shape(?, 3)
             End points of the lines.
+        v : TF tensor, shape(?, 3)
+            Normalized direction vector.
 
         Returns
         -------
         Scale factors t so that r += d*v*t are the points of the hits. Or one
         where no hit occurs.
         """
-        # TODO: Maybe find a better way to do this...
-        x2x1diff = tf.tile([r2 - r1], [len(self.doms), 1, 1])
-        x2x1diff = tf.transpose(x2x1diff, perm=[1, 0, 2])
-        x2x1diffnorm = tf.norm(x2x1diff, axis=-1)
+        # # TODO: Maybe find a better way to do this...
+        # x2x1diff = tf.tile([r2 - r1], [len(self.doms), 1, 1])
+        # x2x1diff = tf.transpose(x2x1diff, perm=[1, 0, 2])
+        # x2x1diffnorm = tf.norm(x2x1diff, axis=-1)
 
-        x1 = tf.tile([r1], [len(self.doms), 1, 1])
-        x1 = tf.transpose(x1, perm=[1, 0, 2])
-        x1x0diff = x1 - self.doms
+        # x1 = tf.tile([r1], [len(self.doms), 1, 1])
+        # x1 = tf.transpose(x1, perm=[1, 0, 2])
+        # x1x0diff = x1 - self.doms
 
-        ds = tf.norm(tf.cross(x2x1diff, x1x0diff), axis=-1)/x2x1diffnorm
-        ts = -tf.einsum('ijk,ijk->ij', x1x0diff,
-                        x2x1diff)/tf.square(x2x1diffnorm)
+        # ds = tf.norm(tf.cross(x2x1diff, x1x0diff), axis=-1)/x2x1diffnorm
+        # ts = -tf.einsum('ijk,ijk->ij', x1x0diff,
+        #                 x2x1diff)/tf.square(x2x1diffnorm)
+
+        # expand vectors to shape [batch, dom, coordinate]
+        # TODO: Maybe change these vectors to this dimension
+        #       in all methods?
+        v_exp = tf.expand_dims(v, axis=1)
+        r1_exp = tf.expand_dims(r1, axis=1)
+
+        # Maybe save self.doms directly as tf.constant or additionally?
+        tf_doms = tf.constant( np.expand_dims( self.doms, axis=0), 
+                               dtype=settings.FLOAT_PRECISION)
+
+        # define plane with normal vector v and anchor point r1
+        # define second plane with normal vector v and anchor point as dom
+        # ts are the distances between these planes
+        diff_doms_r1 = tf_doms - r1_exp
+        ts_exp = tf.reduce_sum( v_exp * diff_doms_r1, axis=2, keepdims=True)
+
+        # closest approach point is
+        # r1 + t*v
+        # calculate norm of vector from closest 
+        # approach point to dom
+        ds_exp = tf.norm( -diff_doms_r1 + v_exp * ts_exp, 
+                            axis=2, 
+                            keepdims=True)
+
+        # remove last dimension again
+        # TODO: possibly make all vectors have shape
+        #       [batch, dom, coordinate]
+        #       that way expanding and squezing can be avoided
+        ds = tf.squeeze(ds_exp, axis=2)
+        ts = tf.squeeze(ts_exp, axis=2)
+        
 
         t = -tf.reduce_max(-tf.where(
             tf.logical_and(tf.logical_and(ds < self._dom_radius, ts >= 0.), ts
                            <= 1.), ts,
-            tf.ones([tf.shape(r1)[0], len(self.doms)],
-                    dtype=settings.FLOAT_PRECISION)),
+            tf.ones_like(ts)),
                            axis=-1)
         return tf.stop_gradient(t)
 
@@ -122,6 +155,6 @@ class Detector:
         for dom in self.doms:
             d = tf.norm(final_positions - dom, axis=1)
             hitlist.append(tf.reduce_sum(tf.where(d <= self._dom_radius,
-                                                  tf.ones(tf.shape(d)[0]),
-                                                  tf.zeros(tf.shape(d)[0]))))
+                                                  tf.ones(d.get_shape()[0]),
+                                                  tf.zeros(d.get_shape()[0]))))
         return hitlist

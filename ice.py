@@ -77,30 +77,30 @@ class Ice:
 
     def tf_sample_absorbtion(self, r):
         """
-        Samples a absorbtion length.
+        Samples absorbtion lengths.
 
         Parameters
         ----------
-        r : TF tensor, rd vector
-            Photon location.
+        r : TF tensor, shape(?, 3)
+            Photon locations.
 
         Returns
         -------
-        Tensor for the sampled absorbtion length.
+        Tensor for the sampled absorbtion lengths of shape(?).
         """
-        return self._abs_pdf.sample(1)[0]
+        return self._abs_pdf.sample(tf.shape(r)[0])
 
     def tf_sample_scatter(self, r):
         """
-        Samples a scattering length.
+        Samples scattering lengths.
 
         Parameters
         ----------
-        r : TF tensor, rd vector
-            Photon location.
+        r : TF tensor, shape(?, 3)
+            Photon locations.
 
         Returns
         -------
-        Tensor for the sampled scattering length.
+        Tensor for the sampled scattering lengths of shape(?).
         """
-        return self._scat_pdf.sample(1)[0]
+        return self._scat_pdf.sample(tf.shape(r)[0])

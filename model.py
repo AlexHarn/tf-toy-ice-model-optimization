@@ -34,10 +34,7 @@ class Model:
         self._uni_pdf = tf.distributions.Uniform()
 
         # propagate
-        self.final_positions = tf.map_fn(lambda x: self.tf_propagate(x[0],
-                                                                     x[1]),
-                                         tf.stack([self._r0, self._v0],
-                                                  axis=1))
+        self.final_positions = self.tf_propagate(self._r0, self._v0)
 
     def init_cascade(self, x, y, z, n_photons=10000):
         """
@@ -72,24 +69,28 @@ class Model:
         self.v0[:, 2] = np.cos(thetas)
 
     # ------------------------------ Simulation -------------------------------
-    def tf_sample_normal_vector(self, r):
+    def tf_sample_normal_vectors(self, r):
         """
-        Samples a normalized random 3d vector with uniformly distributed
+        Samples normalized random 3d vectors with uniformly distributed
         direction which is perpendicular to r.
 
         Parameters
         ----------
-        r : TF tensor, 3d vector
-            The vector for which a random normal vector is desired.
+        r : TF tensor, shape(?, 3)
+            The vectors for which random normal vectors are desired.
 
         Returns
         -------
-        The random normal vector tensor.
+        The random normal vector tensor of shape(?, 3).
         """
-        theta = self._uni_pdf.sample(1)[0]*np.pi
-        phi = self._uni_pdf.sample(1)[0]*2*np.pi
-        sinT = tf.sin(theta)
-        v = tf.cross([sinT*tf.cos(phi), sinT*tf.sin(phi), tf.cos(theta)], r)
+        # sample random vectors uniformly in all directions
+        thetas = self._uni_pdf.sample(tf.shape(r)[0])*np.pi
+        phis = self._uni_pdf.sample(tf.shape(r)[0])*2*np.pi
+        sinTs = tf.sin(thetas)
+
+        # construct normal vectors by computing the cross products
+        v = tf.cross(tf.transpose([sinTs*tf.cos(phis), sinTs*tf.sin(phis),
+                                   tf.cos(thetas)]), r)
         return v/tf.norm(v)
 
     def tf_scatter(self, v):
@@ -98,60 +99,67 @@ class Model:
 
         Parameters
         ----------
-        v : TF tensor, 3d vector
-            Direction vector of the photon which is being scattered
+        v : TF tensor, shape(?, 3)
+            Direction vectors of the photons which are being scattered
 
         Returns
         -------
-        The scattered direction tensor
+        The scattered direction tensor of shape(?, 3)
         """
         # sample cos(theta)
-        cosT = 2*self._uni_pdf.sample(1)[0]**(1/19) - 1
-        cosT2 = tf.sqrt((cosT + 1)/2)
-        sinT2 = tf.sqrt((1 - cosT)/2)
+        cosTs = 2*self._uni_pdf.sample(tf.shape(v)[0])**(1/19) - 1
+        cosT2s = tf.sqrt((cosTs + 1)/2)
+        sinT2s = tf.sqrt((1 - cosTs)/2)
 
-        n = self.tf_sample_normal_vector(v)*sinT2
+        ns = tf.transpose(self.tf_sample_normal_vectors(v) *
+                          tf.expand_dims(sinT2s, axis=-1))
         # ignore the fact that n could be parallel to v, what's the probability
         # of that happening?
 
-        q = tfq.Quaternion([cosT2, n[0], n[1], n[2]])
-
-        return tfq.quaternion_to_vector3d(q*tfq.vector3d_to_quaternion(v)/q)
+        q = tfq.Quaternion(tf.transpose([cosT2s, ns[0], ns[1], ns[2]]))
+        return tfq.rotate_vector_by_quaternion(q, v)
 
     def tf_propagate(self, r, v):
         """
-        Propagates a single photon until it is absorbed.
+        Propagates the photons until theiy are absorbed or hit a DOM.
 
         Parameters
         ----------
-        r : tf tensor, 3d vector
-            initial position of the photon
-        v : tf tensor, 3d vector
-            initial direction of the photon
+        r : tf tensor, shape(?, 3)
+            initial positions of the photons
+        v : tf tensor, shape(?, 3)
+            initial directions of the photons
 
         Returns
         -------
-        Final position tensor of the photon after absorbtion.
+        Final position tensor of the photons of shape(?, 3).
         """
 
         def body(d_abs, r, v):
-            # sample distance until next scattering
+            # sample distances until next scattering
             d_scat = self._ice.tf_sample_scatter(r)
+
+            # make sure we stop the popagation after d_abs
+            d_abs = tf.where(d_abs > 0., d_abs,
+                             tf.zeros(tf.shape(d_abs),
+                                      dtype=settings.FLOAT_PRECISION))
 
             # if the distance is longer than the remaining distance until
             # absorbtion only propagate to absorbtion
-            # d = tf.cond(d_scat < d_abs, lambda: d_scat, lambda: d_abs)
             d = tf.where(d_scat < d_abs, d_scat, d_abs)
 
-            # calculate the potential next scattering point
-            r_next = r + d*v
+            # calculate the potential next scattering locations
+            r_next = r + tf.expand_dims(d, axis=-1)*v
 
-            # check for hit
-            t = self._detector.tf_check_for_hit(r, r_next)
+            # check for hits
+            t = self._detector.tf_check_for_hits(r, r_next)
 
             # propagate
-            d_abs = tf.where(t < 1., 0., d_abs - d)
-            r += d*v*t
+            d_abs = tf.where(t < 1., tf.zeros(tf.shape(d),
+                                              dtype=settings.FLOAT_PRECISION),
+                             d_abs - d)
+            d_abs -= d
+            r = r + tf.expand_dims(d*t, axis=-1)*v
 
             # scatter
             v = self.tf_scatter(v)
@@ -159,7 +167,7 @@ class Model:
             return [d_abs, r, v]
 
         return tf.while_loop(
-            lambda d_abs, r, v: tf.less(0., d_abs),
+            lambda d_abs, r, v: tf.less(0., tf.norm(d_abs)),
             lambda d_abs, r, v: body(d_abs, r, v),
             [self._ice.tf_sample_absorbtion(r), r, v])[1]
 

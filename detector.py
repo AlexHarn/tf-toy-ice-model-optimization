@@ -6,7 +6,7 @@ import settings
 
 class Detector:
     """
-    Holds information on the DOMs. Currently the DOMs are cubes not spheres.
+    Holds information on the DOMs.
     """
     # ---------------------------- Initialization -----------------------------
     def __init__(self, l_x=1000, l_y=1000, l_z=1000, dom_radius=0.124,
@@ -23,8 +23,7 @@ class Detector:
         l_z : float or int, lenth in m
             Detector length in z-direction.
         dom_radius : float, radius in m
-            The radius of the DOMs. For now DOMs are approximated by cubes with
-            an edge length of two times the radius.
+            The radius of the DOMs.
         doms_per_string : integer
             Number of DOMs per string. Strings go down in z-direction.
         nx_strings : integer
@@ -41,36 +40,42 @@ class Detector:
                               range(doms_per_string)])
 
     # -------------------------- TF Graph Building ----------------------------
-    def tf_check_for_hit(self, r1, r2):
+    def tf_check_for_hits(self, r1, r2):
         """
-        Builds the subgraph to check if the line between r1 and r2 hits a DOM.
+        Builds the subgraph to check if the lines between r1 and r2 hit DOMs.
         If a hit occurs the according scale factor < 1 is returned.
 
         Parameters
         ----------
-        r1 : TF tensor, 3d vector
-            Starting point of the line.
-        r2 : TF tensor, 3d vector
-            End point of the line.
+        r1 : TF tensor, shape(?, 3)
+            Starting points of the lines.
+        r2 : TF tensor, shape(?, 3)
+            End points of the lines.
 
         Returns
         -------
-        Scale factor t so that r += d*v*t is the point of the hit. Or t = 1 if
-        no hit occurs.
+        Scale factors t so that r += d*v*t are the points of the hits. Or one
+        where no hit occurs.
         """
-        # TODO: Find a better way. This is horribly slow...
-        x2x1diff = tf.tile([r2 - r1], [len(self.doms), 1])
-        x2x1diffnorm = tf.norm(x2x1diff, axis=1)
-        x1 = tf.tile([r1], [len(self.doms), 1])
+        # TODO: Maybe find a better way to do this...
+        x2x1diff = tf.tile([r2 - r1], [len(self.doms), 1, 1])
+        x2x1diff = tf.transpose(x2x1diff, perm=[1, 0, 2])
+        x2x1diffnorm = tf.norm(x2x1diff, axis=-1)
+
+        x1 = tf.tile([r1], [len(self.doms), 1, 1])
+        x1 = tf.transpose(x1, perm=[1, 0, 2])
         x1x0diff = x1 - self.doms
 
-        ds = tf.norm(tf.cross(x2x1diff, x1x0diff), axis=1)/x2x1diffnorm
-        ts = -tf.einsum('ij,ij->i', x1x0diff, x2x1diff)/tf.square(x2x1diffnorm)
+        ds = tf.norm(tf.cross(x2x1diff, x1x0diff), axis=-1)/x2x1diffnorm
+        ts = -tf.einsum('ijk,ijk->ij', x1x0diff,
+                        x2x1diff)/tf.square(x2x1diffnorm)
 
         t = -tf.reduce_max(-tf.where(
-            tf.logical_and(tf.logical_and(ds < self._dom_radius, ts >= 0), ts
-                           <= 1), ts, tf.ones(len(self.doms),
-                                              dtype=settings.FLOAT_PRECISION)))
+            tf.logical_and(tf.logical_and(ds < self._dom_radius, ts >= 0.), ts
+                           <= 1.), ts,
+            tf.ones([tf.shape(r1)[0], len(self.doms)],
+                    dtype=settings.FLOAT_PRECISION)),
+                           axis=-1)
         return t
 
     def tf_count_hits(self, final_positions):

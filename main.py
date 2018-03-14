@@ -46,11 +46,11 @@ if __name__ == '__main__':
 
     # --------------------------------- Run -----------------------------------
     print("Starting training...")
-    model_true.init_cascade(500, 500, 500, settings.N_PHOTONS)
-    model_pred.init_cascade(500, 500, 500, settings.N_PHOTONS)
-    print(session.run([optimizer, hits],
-                      feed_dict={**model_true.feed_dict,
-                                 **model_pred.feed_dict})[1])
+    model_true.init_cascade(500, 500, 250, settings.N_PHOTONS)
+    model_pred.init_cascade(500, 500, 250, settings.N_PHOTONS)
+    feed_dict = model_true.feed_dict
+    feed_dict.update(model_pred.feed_dict)
+    print(session.run([optimizer, hits], feed_dict=feed_dict)[1])
     # for i in range(1000000000):
         # model_true.init_cascade(500, 500, 500, settings.N_PHOTONS)
         # model_pred.init_cascade(500, 500, 500, settings.N_PHOTONS)

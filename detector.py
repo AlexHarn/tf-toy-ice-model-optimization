@@ -33,9 +33,9 @@ class Detector:
             Number of strins in y-direction.
         """
         self._dom_radius = dom_radius
-        dx = l_x/nx_strings
-        dy = l_y/ny_strings
-        dz = l_z/doms_per_string
+        dx = l_x/(nx_strings - 1)
+        dy = l_y/(ny_strings - 1)
+        dz = l_z/(doms_per_string - 1)
         self.doms = np.array([[x*dx, y*dy, z*dz] for x in range(nx_strings) for
                               y in range(ny_strings) for z in
                               range(doms_per_string)])
@@ -68,9 +68,9 @@ class Detector:
         ts = -tf.einsum('ij,ij->i', x1x0diff, x2x1diff)/tf.square(x2x1diffnorm)
 
         t = -tf.reduce_max(-tf.where(
-            tf.logical_and(tf.logical_and(ds < self._dom_radius, ts > 0), ts <
-                           1), ts, tf.ones(len(self.doms),
-                                           dtype=settings.FLOAT_PRECISION)))
+            tf.logical_and(tf.logical_and(ds < self._dom_radius, ts >= 0), ts
+                           <= 1), ts, tf.ones(len(self.doms),
+                                              dtype=settings.FLOAT_PRECISION)))
         return t
 
     def tf_count_hits(self, final_positions):

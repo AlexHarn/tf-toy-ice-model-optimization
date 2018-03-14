@@ -1,5 +1,6 @@
 from __future__ import division
 import tensorflow as tf
+import numpy as np
 from ice import Ice
 from detector import Detector
 from model import Model
@@ -10,6 +11,7 @@ if __name__ == '__main__':
     # ---------------------------- Initialization -----------------------------
     if settings.RANDOM_SEED:
         tf.set_random_seed(settings.RANDOM_SEED)
+        np.random.seed(settings.RANDOM_SEED)
 
     # initialize the ice
     ice_true = Ice()
@@ -43,31 +45,28 @@ if __name__ == '__main__':
     hits_pred = detector.tf_soft_count_hits(model_pred.final_positions)
 
     # define loss
-    # loss = tf.reduce_sum([tf.squared_difference(dom_hits_true, dom_hits_pred)
-                          # for (dom_hits_true, dom_hits_pred)
-                          # in zip(hits_true, hits_pred)])
-    loss = tf.abs(hits_true[12] - hits_pred[12])
+    loss = tf.reduce_sum([tf.squared_difference(dom_hits_true, dom_hits_pred)
+                          for (dom_hits_true, dom_hits_pred)
+                          in zip(hits_true, hits_pred)])
 
     # init optimizer
     optimizer = \
         tf.train.AdamOptimizer(
             learning_rate=settings.LEARNING_RATE).minimize(loss)
 
-    # gradient = tf.gradients(loss, [ice_pred._l_abs, ice_pred._l_scat])
-    gradient = tf.gradients(model_pred.final_positions, [ice_pred._l_abs,
-                                                         ice_pred._l_scat])
     # init variables
     session.run(tf.global_variables_initializer())
 
     # --------------------------------- Run -----------------------------------
     print("Starting...")
-    r_cascade = [50, 50, 25]
     for i in range(100000000):
-        result = session.run([optimizer, gradient, hits_true, hits_pred, loss,
-                              ice_pred._l_abs, ice_pred._l_scat],
+        r_cascade = [np.random.uniform(high=settings.LENGTH_X),
+                     np.random.uniform(high=settings.LENGTH_Y),
+                     np.random.uniform(high=settings.LENGTH_Z)]
+        result = session.run([optimizer, loss, ice_pred._l_abs,
+                              ice_pred._l_scat],
                              feed_dict={model_true.r_cascade: r_cascade,
                                         model_pred.r_cascade: r_cascade})
 
-        print(result[1], result[2][12], result[3][12], result[4])
-        # print(("[{:08d}] loss: {:2.3f} l_abs_pred: {:2.3f} l_scat_pred:"
-               # " {:2.3f}") .format(i, *result[4:]))
+        print(("[{:08d}] loss: {:2.3f} l_abs_pred: {:2.3f} l_scat_pred:"
+               " {:2.3f}") .format(i, *result[1:]))

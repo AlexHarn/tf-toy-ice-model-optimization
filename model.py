@@ -152,6 +152,6 @@ class Model:
             return [d_abs, r, v]
 
         return tf.while_loop(
-            lambda d_abs, r, v: tf.less(0., tf.norm(d_abs)),
+            lambda d_abs, r, v: tf.less(0., tf.reduce_max(d_abs)),
             lambda d_abs, r, v: body(d_abs, r, v),
             [self._ice.tf_sample_absorbtion(r), r, v])[1]

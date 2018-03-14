@@ -76,7 +76,7 @@ class Detector:
             tf.ones([tf.shape(r1)[0], len(self.doms)],
                     dtype=settings.FLOAT_PRECISION)),
                            axis=-1)
-        return t
+        return tf.stop_gradient(t)
 
     def tf_soft_count_hits(self, final_positions):
         """

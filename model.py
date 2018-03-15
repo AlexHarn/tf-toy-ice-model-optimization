@@ -76,7 +76,7 @@ class Model:
         # construct normal vectors by computing the cross products
         v = tf.cross(tf.transpose([sinTs*tf.cos(phis), sinTs*tf.sin(phis),
                                    tf.cos(thetas)]), r)
-        return v/tf.norm(v)
+        return v/tf.norm(v, axis=-1, keepdims=True)
 
     def tf_scatter(self, v):
         """

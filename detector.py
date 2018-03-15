@@ -109,16 +109,14 @@ class Detector:
         The DOM hitlist which contains a tensorflow variable for each DOM as a
         measure for the number of photons that ended up inside the DOM.
         """
-
         # TODO: change vectors to dimension [batch, dom, coordinate]
         #       get rid of expand and squeze
         final_positions_exp = tf.expand_dims(final_positions, axis=1)
 
         # calculate distances of every photon to every DOM
         ds = tf.norm(final_positions_exp - self.tf_doms, axis=2)
-        hitlist = tf.reduce_sum(
-                        -tf.nn.softsign((ds - self._dom_radius)*10000) + 1,
-                        axis=0) / 2
+        hitlist = tf.reduce_sum(-tf.nn.softsign((ds - self._dom_radius)*1000)
+                                + 1, axis=0) / 2
 
         return hitlist
 
@@ -137,7 +135,6 @@ class Detector:
         The DOM hitlist which contains the number of hits for each DOM as a
         tensorflow variable.
         """
-
         # TODO: change vectors to dimension [batch, dom, coordinate]
         #       get rid of expand and squeze
         final_positions_exp = tf.expand_dims(final_positions, axis=1)

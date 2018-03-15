@@ -143,7 +143,6 @@ class Model:
             d_abs = tf.where(t < 1., tf.zeros(tf.shape(d),
                                               dtype=settings.FLOAT_PRECISION),
                              d_abs - d)
-            #d_abs -= d
             r = r + tf.expand_dims(d*t, axis=-1)*v
 
             # scatter

@@ -133,11 +133,8 @@ class Model:
             # absorbtion only propagate to absorbtion
             d = tf.where(d_scat < d_abs, d_scat, d_abs)
 
-            # calculate the potential next scattering locations
-            r_next = r + tf.expand_dims(d, axis=-1)*v
-
             # check for hits
-            t = self._detector.tf_check_for_hits(r, r_next, v)
+            t = self._detector.tf_check_for_hits(r, d, v)
 
             # propagate
             d_abs = tf.where(t < 1., tf.zeros(tf.shape(d),

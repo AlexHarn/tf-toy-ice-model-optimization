@@ -43,49 +43,50 @@ class Detector:
                                    dtype=settings.FLOAT_PRECISION)
 
     # -------------------------- TF Graph Building ----------------------------
-    def tf_check_for_hits(self, r1, r2, v):
+    def tf_check_for_hits(self, r, d, v):
         """
-        Builds the subgraph to check if the lines between r1 and r2 hit DOMs.
-        If a hit occurs the according scale factor < 1 is returned.
+        Builds the subgraph to check if the lines between r and r + d*v  hit
+        DOMs.  If a hit occurs the according scale factor < 1 is returned.
 
         Parameters
         ----------
-        r1 : TF tensor, shape(?, 3)
+        r : TF tensor, shape(?, 3)
             Starting points of the lines.
-        r2 : TF tensor, shape(?, 3)
-            End points of the lines.
+        d : TF tensor, shape(?)
+            Lengths of the lines.
         v : TF tensor, shape(?, 3)
-            Normalized direction vector.
+            Normalized direction vectors of the lines.
 
         Returns
         -------
-        Scale factors t so that r += d*v*t are the points of the hits. Or one
+        Scale factors t so that r + d*v*t are the points of the hits. Or one
         where no hit occurs.
         """
         # expand vectors to shape [batch, dom, coordinate]
         # TODO: Maybe change these vectors to this dimension
         #       in all methods?
         v_exp = tf.expand_dims(v, axis=1)
-        r1_exp = tf.expand_dims(r1, axis=1)
+        r_exp = tf.expand_dims(r, axis=1)
+        d_exp = tf.expand_dims(d, axis=1)
 
-        # define plane with normal vector v and anchor point r1
+        # define plane with normal vector v and anchor point r
         # define second plane with normal vector v and anchor point as dom
         # ts are the distances between these planes
-        diff_doms_r1 = self.tf_doms - r1_exp
-        ts_exp = tf.reduce_sum(v_exp * diff_doms_r1, axis=2, keepdims=True)
+        diff_doms_r = self.tf_doms - r_exp
+        ts_exp = tf.reduce_sum(v_exp * diff_doms_r, axis=2, keepdims=True)
 
         # closest approach point is
-        # r1 + t*v
+        # r + t*v
         # calculate norm of vector from closest
         # approach point to dom
-        ds_exp = tf.norm(-diff_doms_r1 + v_exp*ts_exp, axis=2, keepdims=True)
+        ds_exp = tf.norm(-diff_doms_r + v_exp*ts_exp, axis=2, keepdims=True)
 
         # remove last dimension again
         # TODO: possibly make all vectors have shape
         #       [batch, dom, coordinate]
         #       that way expanding and squezing can be avoided
         ds = tf.squeeze(ds_exp, axis=2)
-        ts = tf.squeeze(ts_exp, axis=2)
+        ts = tf.squeeze(ts_exp, axis=2)/d_exp
 
         # filter closest hit from valid hits, 1 if no hit occurs
         t = -tf.reduce_max(-tf.where(

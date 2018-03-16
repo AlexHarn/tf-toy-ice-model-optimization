@@ -8,20 +8,17 @@ import settings
 class Model:
     """
     Implementation of the simplified photon propagation model.
+
+    Parameters
+    ----------
+    detector : Detector class object
+        The detector object, which holds information on the DOMs.
+    ice : Ice class object
+        The ice object, Which holds the scattering and absorption
+        coefficients.
     """
     # ---------------------------- Initialization -----------------------------
     def __init__(self, ice, detector):
-        """
-        Initializes the model by building the computational graph.
-
-        Parameters
-        ----------
-        detector : Detector class object
-            The detector object, which holds information on the DOMs.
-        ice : Ice class object
-            The ice object, Which holds the scattering and absorption
-            coefficients.
-        """
         # set attributes
         self._ice = ice
         self._detector = detector

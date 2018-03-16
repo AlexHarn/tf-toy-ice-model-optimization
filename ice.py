@@ -9,18 +9,15 @@ class Ice:
     devided into layers in z-direction.
 
     Actually for now only homogenous ice is implemented.
+
+    Parameters
+    ----------
+    trainable : boolean
+        Decides if the ice parameters are supposed to be trainable TF
+        variables or simply constants.
     """
     # ---------------------------- Initialization -----------------------------
     def __init__(self, trainable=False):
-        """
-        Constructor.
-
-        Parameters
-        ----------
-        trainable : boolean
-            Decides if the ice parameters are supposed to be trainable TF
-            variables or simply constants.
-        """
         self._trainable = trainable
         self._homogenous = False
 

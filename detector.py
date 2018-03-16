@@ -6,31 +6,29 @@ import settings
 
 class Detector:
     """
-    Holds information on the DOMs.
+    Defines the detector and provides the graph building methods for hit
+    detection and hit counting.
+
+    Parameters
+    ----------
+    l_x : float or int, length in m
+        Detector length in x-direction.
+    l_y : float or int, lenth in m
+        Detector length in y-direction.
+    l_z : float or int, lenth in m
+        Detector length in z-direction.
+    dom_radius : float, radius in m
+        The radius of the DOMs.
+    doms_per_string : integer
+        Number of DOMs per string. Strings go down in z-direction.
+    nx_strings : integer
+        Number of strins in x-direction.
+    ny_strings : integer
+        Number of strins in y-direction.
     """
     # ---------------------------- Initialization -----------------------------
     def __init__(self, l_x=1000, l_y=1000, l_z=1000, dom_radius=0.124,
                  doms_per_string=60, nx_strings=10, ny_strings=10):
-        """
-        Creates the DOM-list.
-
-        Parameters
-        ----------
-        l_x : float or int, length in m
-            Detector length in x-direction.
-        l_y : float or int, lenth in m
-            Detector length in y-direction.
-        l_z : float or int, lenth in m
-            Detector length in z-direction.
-        dom_radius : float, radius in m
-            The radius of the DOMs.
-        doms_per_string : integer
-            Number of DOMs per string. Strings go down in z-direction.
-        nx_strings : integer
-            Number of strins in x-direction.
-        ny_strings : integer
-            Number of strins in y-direction.
-        """
         self._dom_radius = dom_radius
         dx = l_x/(nx_strings - 1)
         dy = l_y/(ny_strings - 1)

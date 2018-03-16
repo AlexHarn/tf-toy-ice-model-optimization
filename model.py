@@ -24,27 +24,32 @@ class Model:
         self._detector = detector
 
         # start defining the computational graph
-        self.r_cascade = tf.placeholder(settings.FLOAT_PRECISION, shape=(3))
+        self.r_cascades = tf.placeholder(settings.FLOAT_PRECISION,
+                                         shape=(settings.CASCADES_PER_BATCH,
+                                                3))
 
         # init uniform pdf
         self._uni_pdf = tf.distributions.Uniform()
 
-        # init cascade
-        self.tf_init_cascade()
+        # init cascades
+        self.tf_init_cascades()
 
         # propagate
-        self.final_positions = self.tf_propagate(self._r0, self._v0)
+        self.tf_propagate()
 
-    def tf_init_cascade(self):
+    def tf_init_cascades(self):
         """
-        Builds the subgraph to initializes a cascade at position
-        self.r_cascade. All photons start at exactly this initial position. The
-        initial directions are sampled uniformly.
+        Builds the subgraph to initialize cascades at positions
+        self.r_cascades.  All photons start at exactly these initial positions.
+        The initial directions are sampled uniformly. For now all cascades
+        contain the same number of photons n_photons/shape(self.r_cascades)
         """
-        self._r0 = tf.tile([self.r_cascade], [settings.N_PHOTONS, 1])
+        self._r0 = tf.tile(
+            self.r_cascades,
+            [round(settings.BATCH_SIZE/settings.CASCADES_PER_BATCH), 1])
 
-        thetas = self._uni_pdf.sample(settings.N_PHOTONS)*np.pi
-        phis = self._uni_pdf.sample(settings.N_PHOTONS)*2*np.pi
+        thetas = self._uni_pdf.sample(settings.BATCH_SIZE)*np.pi
+        phis = self._uni_pdf.sample(settings.BATCH_SIZE)*2*np.pi
         sinTs = tf.sin(thetas)
 
         self._v0 = tf.transpose([sinTs*tf.cos(phis), sinTs*tf.sin(phis),
@@ -101,22 +106,10 @@ class Model:
         q = tfq.Quaternion(tf.transpose([cosT2s, ns[0], ns[1], ns[2]]))
         return tfq.rotate_vector_by_quaternion(q, v)
 
-    def tf_propagate(self, r, v):
+    def tf_propagate(self):
         """
         Propagates the photons until theiy are absorbed or hit a DOM.
-
-        Parameters
-        ----------
-        r : tf tensor, shape(?, 3)
-            initial positions of the photons
-        v : tf tensor, shape(?, 3)
-            initial directions of the photons
-
-        Returns
-        -------
-        Final position tensor of the photons of shape(?, 3).
         """
-
         def body(d_abs, r, v):
             # sample distances until next scattering
             d_scat = self._ice.tf_sample_scatter(r)
@@ -144,7 +137,7 @@ class Model:
 
             return [d_abs, r, v]
 
-        return tf.while_loop(
+        self.final_positions = tf.while_loop(
             lambda d_abs, r, v: tf.less(0., tf.reduce_max(d_abs)),
             lambda d_abs, r, v: body(d_abs, r, v),
-            [self._ice.tf_sample_absorbtion(r), r, v])[1]
+            [self._ice.tf_sample_absorbtion(self._r0), self._r0, self._v0])[1]

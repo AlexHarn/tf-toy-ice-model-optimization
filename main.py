@@ -48,8 +48,7 @@ if __name__ == '__main__':
     loss = tf.reduce_sum(tf.squared_difference(hits_true, hits_pred))
 
     # init optimizer
-    optimizer = \
-        tf.train.AdamOptimizer(
+    optimizer = tf.train.AdamOptimizer(
             learning_rate=settings.LEARNING_RATE).minimize(loss)
 
     # init variables
@@ -57,14 +56,15 @@ if __name__ == '__main__':
 
     # --------------------------------- Run -----------------------------------
     print("Starting...")
-    for i in range(100000000):
-        r_cascade = [np.random.uniform(high=settings.LENGTH_X),
-                     np.random.uniform(high=settings.LENGTH_Y),
-                     np.random.uniform(high=settings.LENGTH_Z)]
+    for i in range(settings.N_STEPS):
+        r_cascades = [[np.random.uniform(high=settings.LENGTH_X),
+                       np.random.uniform(high=settings.LENGTH_Y),
+                       np.random.uniform(high=settings.LENGTH_Z)]
+                      for i in range(settings.CASCADES_PER_BATCH)]
         result = session.run([optimizer, loss, ice_pred._l_abs,
                               ice_pred._l_scat],
-                             feed_dict={model_true.r_cascade: r_cascade,
-                                        model_pred.r_cascade: r_cascade})
+                             feed_dict={model_true.r_cascades: r_cascades,
+                                        model_pred.r_cascades: r_cascades})
 
         print(("[{:08d}] loss: {:2.3f} l_abs_pred: {:2.3f} l_scat_pred:"
                " {:2.3f}") .format(i, *result[1:]))

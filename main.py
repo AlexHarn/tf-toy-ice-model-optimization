@@ -6,21 +6,25 @@ from tqdm import trange
 from ice import Ice
 from detector import Detector
 from model import Model
+from logger import Logger
 import settings
 
 
 if __name__ == '__main__':
     # ---------------------------- Initialization -----------------------------
+    # set random seeds
     if settings.RANDOM_SEED:
         tf.set_random_seed(settings.RANDOM_SEED)
         np.random.seed(settings.RANDOM_SEED)
 
     # initialize the ice
     ice_true = Ice()
-    ice_true.homogeneous_init()
+    ice_true.homogeneous_init(l_abs=settings.L_ABS_TRUE,
+                              l_scat=settings.L_SCAT_TRUE)
 
     ice_pred = Ice(trainable=True)
-    ice_pred.homogeneous_init(l_abs=90, l_scat=22)
+    ice_pred.homogeneous_init(l_abs=settings.L_ABS_START,
+                              l_scat=settings.L_SCAT_START)
 
     # initialize the detector
     detector = Detector(dom_radius=settings.DOM_RADIUS,
@@ -87,6 +91,9 @@ if __name__ == '__main__':
     session.run(tf.global_variables_initializer())
 
     # --------------------------------- Run -----------------------------------
+    # initialize the logger
+    logger = Logger()
+
     print("Starting...")
     for i in range(settings.N_STEPS):
         # sample cascade positions for this step
@@ -108,6 +115,7 @@ if __name__ == '__main__':
         # reset accumulated gradients to zero and get updated parameters
         result = session.run([reset_gradients, ice_pred._l_abs,
                               ice_pred._l_scat])
+        logger.log(i, *result[1:])
 
-        print(("[{:08d}] l_abs_pred: {:2.3f} l_scat_pred:" " {:2.3f}")
-              .format(i, *result[1:]))
+        if i % settings.WRITE_INTERVAL == 0:
+            logger.write()

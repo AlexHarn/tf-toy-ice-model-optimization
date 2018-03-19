@@ -25,7 +25,7 @@ class Model:
 
         # start defining the computational graph
         self.r_cascades = tf.placeholder(settings.FLOAT_PRECISION,
-                                         shape=(settings.CASCADES_PER_BATCH,
+                                         shape=(settings.CASCADES_PER_STEP,
                                                 3))
 
         # init uniform pdf
@@ -46,7 +46,7 @@ class Model:
         """
         self._r0 = tf.tile(
             self.r_cascades,
-            [round(settings.BATCH_SIZE/settings.CASCADES_PER_BATCH), 1])
+            [round(settings.BATCH_SIZE/settings.CASCADES_PER_STEP), 1])
 
         thetas = self._uni_pdf.sample(settings.BATCH_SIZE)*np.pi
         phis = self._uni_pdf.sample(settings.BATCH_SIZE)*2*np.pi

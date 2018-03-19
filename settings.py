@@ -17,7 +17,7 @@ NY_STRINGS = 3
 # --------------------------------- Training ----------------------------------
 LEARNING_RATE = 0.1
 N_STEPS = 100000000
-BATCHES_PER_STEP = 4
+BATCHES_PER_STEP = 20
 BATCH_SIZE = 25000
-# each cascades contains BATCH_SIZE/CASCADES_PER_BATCH photons
-CASCADES_PER_BATCH = 5
+# each cascades contains BATCH_SIZE*BATCHES_PER_STEP/CASCADES_PER_STEP photons
+CASCADES_PER_STEP = 5

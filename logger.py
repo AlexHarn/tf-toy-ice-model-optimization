@@ -54,7 +54,7 @@ class Logger:
                 + "Git Status says:\n" \
                 + subprocess.check_output(['git', 'status']).decode('utf-8')
             try:
-                with open(self._logdir+'version.log', 'w') as version_logfile:
+                with open(logdir+'version.log', 'w') as version_logfile:
                     version_logfile.write(version_log)
             except Exception:
                 print("Logger could not write to file!")

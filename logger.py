@@ -1,5 +1,7 @@
+from __future__ import print_function
 import os
 import subprocess
+import time
 from datetime import datetime
 from shutil import copyfile
 
@@ -21,7 +23,9 @@ class Logger:
 
         # set default logdir
         if logdir is None:
-            logdir = './log/{}/'.format(round(self._start_time.timestamp()))
+            # for python 2 support... in python 3 there is datetime.timestamp()
+            logdir = './log/{}/'.format(
+                int(time.mktime(self._start_time.timetuple())))
 
         # check if the logdir already exists or create it
         if os.path.exists(logdir):

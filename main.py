@@ -95,7 +95,7 @@ if __name__ == '__main__':
     logger = Logger()
 
     print("Starting...")
-    for i in range(settings.N_STEPS):
+    for step in range(settings.N_STEPS):
         # sample cascade positions for this step
         r_cascades = [[np.random.uniform(high=settings.LENGTH_X),
                        np.random.uniform(high=settings.LENGTH_Y),
@@ -103,7 +103,7 @@ if __name__ == '__main__':
                       for i in range(settings.CASCADES_PER_STEP)]
 
         # propagate in batches
-        for j in trange(settings.BATCHES_PER_STEP, leave=False):
+        for i in trange(settings.BATCHES_PER_STEP, leave=False):
             session.run(propagate_batch, feed_dict={model_true.r_cascades:
                                                     r_cascades,
                                                     model_pred.r_cascades:
@@ -115,7 +115,7 @@ if __name__ == '__main__':
         # reset accumulated gradients to zero and get updated parameters
         result = session.run([reset_gradients, ice_pred._l_abs,
                               ice_pred._l_scat])
-        logger.log(i, *result[1:])
+        logger.log(step, *result[1:])
 
-        if i % settings.WRITE_INTERVAL == 0:
+        if step % settings.WRITE_INTERVAL == 0:
             logger.write()

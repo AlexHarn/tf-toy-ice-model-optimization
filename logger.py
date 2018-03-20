@@ -2,6 +2,7 @@ from __future__ import print_function
 import os
 import subprocess
 import time
+import pandas as pd
 from datetime import datetime
 from shutil import copyfile
 
@@ -33,24 +34,72 @@ class Logger:
                 raise LogdirAlreadyExistsError("If you want to overwrite the "
                                                "existing log set "
                                                "overwrite=True.")
+
+            # clean the existing logdir if overwrite is True
+            if os.path.isfile(logdir+'session.log'):
+                os.unlink(logdir+'session.log')
+            if os.path.isfile(logdir+'variables.hdf5'):
+                os.unlink(logdir+'variables.hdf5')
         else:
             os.makedirs(logdir)
 
         # copy the currently used settings into the logdir
         copyfile('./settings.py', logdir+'settings.py')
 
-        # set attributes
-        self._logdir = logdir
-
-        # start writing into the buffer
-        self._buffer = "Starting at " \
-            + self._start_time.strftime("%a %b %d %H:%M:%S %Z %Y UTC")+'\n'
+        # create version logfile
         if log_version:
-            self._buffer += "Git HEAD points at " \
+            version_log = "Git HEAD points at " \
                 + subprocess.check_output(['git', 'rev-parse',
                                            'HEAD']).decode('utf-8') \
                 + "Git Status says:\n" \
                 + subprocess.check_output(['git', 'status']).decode('utf-8')
+            try:
+                with open(self._logdir+'version.log', 'w') as version_logfile:
+                    version_logfile.write(version_log)
+            except Exception:
+                print("Logger could not write to file!")
+                pass
+
+        # start writing into the buffer
+        self._session_buffer = "Starting at " \
+            + self._start_time.strftime("%a %b %d %H:%M:%S %Z %Y UTC")+'\n'
+
+        # set attributes
+        self._logdir = logdir
+        self._variables = []
+        self._print_variables = set()
+
+    def register_variables(self, variables, print_variables=None,
+                           print_all=False):
+        """
+        Registers the variables which are supposed to get logged. This method
+        can only be called once per session for correct behavior.
+
+        Parameters
+        ----------
+        variables : list of strings
+            A list which contains the names of all the variables which are
+            supposed to get logged. Variables must be scalar.
+        print_variables : list of strings
+            The variables which are supposed to get printed on every step if
+            Logger.log is called with printig=True. Must be a subset of
+            variables.
+        print_all : boolean
+            If true make print_variables = variables. Overrides the
+            print_variables parameter.
+        """
+        if print_all:
+            print_variables = variables
+        else:
+            # verify that print_variables is a subset of variables
+            if not set(print_variables) <= set(variables):
+                raise NotASubsetError("print_variables must be a subset of "
+                                      "variables.")
+        self._variables = variables
+        self._print_variables = set(print_variables)
+
+        # init pandas dataframe buffer
+        self._data_buffer = pd.DataFrame(columns=variables)
 
     # ----------------------- Writing to Files --------------------------------
     def write(self):
@@ -60,15 +109,26 @@ class Logger:
         Should only be used sparingly to not waist too many resources.
         """
         try:
+            # write print buffer to session log
             with open(self._logdir+'session.log', 'a') as session_logfile:
-                session_logfile.write(self._buffer)
-            self._buffer = ""
+                session_logfile.write(self._session_buffer)
+            self._session_buffer = ""
+
+            # write all variables to hdf5 store
+            store = pd.HDFStore(self._logdir+'variables.hdf5')
+
+            store.append('Variables', self._data_buffer, format='t',
+                         data_columns=True)
         except Exception:
             print("Logger could not write to file!")
             pass
+        store.close()
+
+        # reset the data buffer TODO: better way?
+        self._data_buffer = pd.DataFrame(columns=self._variables)
 
     # -------------------- Public Logging Methods -----------------------------
-    def log(self, step, l_abs_pred, l_scat_pred, printing=True):
+    def log(self, step, variables, printing=True):
         """
         Very basic and specialized logging method, no time left for today but
         this will be greatly improved.
@@ -77,33 +137,52 @@ class Logger:
         ----------
         step : integer
             The current training step.
-        l_abs_pred : float, length in m
-            The current prediction for the absorbtion length.
-        l_scat_pred : float, length in m
-            The current prediction for the scattering length.
+        variables : list of scalar numbers
+            A list with one value for each registered variable in the same
+            order they have been registered. The variables have to be
+            registered first using Logger.register_variables.
         printing : boolean
             Whether or not to print the logged step.
         """
+        if len(variables) != len(self._variables):
+            raise InvalidNumberOfVariables("The number of parsed variables "
+                                           "does not equal the number of "
+                                           "registered variables")
 
         session_time = datetime.utcnow() - self._start_time
         hours, remainder = divmod(session_time.seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
 
-        line = ("[{:02d}:{:02d}:{:02d} {:08d}] l_abs_pred: {:2.3f} "
-                "l_scat_pred: {:2.3f}\n") \
-            .format(hours, minutes, seconds, step, l_abs_pred, l_scat_pred)
+        line = ("[{:02d}:{:02d}:{:02d} {:08d}]").format(
+            hours, minutes, seconds, step)
+        for i, value in enumerate(variables):
+            if self._variables[i] in self._print_variables:
+                line += " {}: {:2.3f}".format(self._variables[i], value)
+        line += '\n'
+
+        # append row to data buffer
+        self._data_buffer.loc[step] = variables
 
         if printing:
             print(line[:-1])
 
-        self._buffer += line
+        self._session_buffer += line
 
     def print(self):
         """
         Prints the current session buffer contents without the last newline.
         """
-        print(self._buffer[:-1])
+        print(self._session_buffer[:-1])
 
 
+# -------------------------------- Exceptions ---------------------------------
 class LogdirAlreadyExistsError(Exception):
+    pass
+
+
+class NotASubsetError(Exception):
+    pass
+
+
+class InvalidNumberOfVariables(Exception):
     pass

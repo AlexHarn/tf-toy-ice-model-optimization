@@ -92,7 +92,8 @@ if __name__ == '__main__':
 
     # --------------------------------- Run -----------------------------------
     # initialize the logger
-    logger = Logger()
+    logger = Logger(logdir='test/', overwrite=True)
+    logger.register_variables(['l_abs_pred', 'l_scat_pred'], print_all=True)
 
     print("Starting...")
     for step in range(settings.N_STEPS):
@@ -115,7 +116,7 @@ if __name__ == '__main__':
         # reset accumulated gradients to zero and get updated parameters
         result = session.run([reset_gradients, ice_pred._l_abs,
                               ice_pred._l_scat])
-        logger.log(step, *result[1:])
+        logger.log(step, result[1:])
 
-        if step % settings.WRITE_INTERVAL == 0:
+        if (step + 1) % settings.WRITE_INTERVAL == 0:
             logger.write()

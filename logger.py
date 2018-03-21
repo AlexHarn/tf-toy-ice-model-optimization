@@ -12,11 +12,18 @@ class Logger:
     Initializes the Logger object.
 
     The logger class is still very basic right now and can only deal with
-    homogeneous ice. Plans include the option to track any variables using
-    dictionaries and easily define plots. Also TensorBoard integration is a
-    crucial planned feature.
+    homogeneous ice.
 
-    Para
+    Parameters
+    ----------
+    logdir : string
+        Path to the logdir to write to. If None a directory inside ./log gets
+        created as logdir. Its name is the current timestamp.
+    overwrite : boolean
+        If True the logdir will get overwritten if it already exists. Caution
+        is advised, it is always recommended to set this parameter to False in
+        which case an exception is raised if the logdir already exists.
+
     """
     # ---------------------------- Initialization -----------------------------
     def __init__(self, logdir=None, overwrite=False, log_version=True):
@@ -119,10 +126,10 @@ class Logger:
 
             store.append('Variables', self._data_buffer, format='t',
                          data_columns=True)
+            store.close()
         except Exception:
             print("Logger could not write to file!")
             pass
-        store.close()
 
         # reset the data buffer TODO: better way?
         self._data_buffer = pd.DataFrame(columns=self._variables)

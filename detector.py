@@ -71,13 +71,13 @@ class Detector:
         # define second plane with normal vector v and anchor point as dom
         # ts are the distances between these planes
         diff_doms_r = self.tf_doms - r_exp
-        ts_exp = tf.reduce_sum(v_exp * diff_doms_r, axis=2, keepdims=True)
+        ts_exp = tf.reduce_sum(v_exp * diff_doms_r, axis=2, keep_dims=True)
 
         # closest approach point is
         # r + t*v
         # calculate norm of vector from closest
         # approach point to dom
-        ds_exp = tf.norm(-diff_doms_r + v_exp*ts_exp, axis=2, keepdims=True)
+        ds_exp = tf.norm(-diff_doms_r + v_exp*ts_exp, axis=2, keep_dims=True)
 
         # remove last dimension again
         # TODO: possibly make all vectors have shape

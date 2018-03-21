@@ -100,7 +100,7 @@ if __name__ == '__main__':
 
     # --------------------------------- Run -----------------------------------
     # initialize the logger
-    logger = Logger(logdir='log/')
+    logger = Logger()
     logger.register_variables(['loss', 'l_abs_pred', 'l_scat_pred'],
                               print_all=True)
 

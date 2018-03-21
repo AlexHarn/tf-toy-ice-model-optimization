@@ -54,7 +54,10 @@ if __name__ == '__main__':
     loss = tf.reduce_sum(tf.squared_difference(hits_true, hits_pred))
 
     # init optimizer
-    optimizer = tf.train.AdamOptimizer(learning_rate=settings.LEARNING_RATE)
+    if settings.OPTIMIZER == 'Adam':
+        optimizer = tf.train.AdamOptimizer(**settings.ADAM_SETTINGS)
+    else:
+        raise ValueError(settings.OPTIMIZER+" is not a supported optimizer!")
 
     # grab all trainable variables
     trainable_variables = tf.trainable_variables()
@@ -87,16 +90,22 @@ if __name__ == '__main__':
         (accumulated_gradient, gradient[1]) for accumulated_gradient, gradient
         in zip(accumulated_gradients, gradients)])
 
+    # define variable and operations to track the average batch loss
+    average_loss = tf.Variable(0., trainable=False)
+    update_loss = average_loss.assign_add(loss/settings.BATCHES_PER_STEP)
+    reset_loss = average_loss.assign(0.)
+
     # initialize all variables
     session.run(tf.global_variables_initializer())
 
     # --------------------------------- Run -----------------------------------
     # initialize the logger
-    logger = Logger(logdir='test/', overwrite=True)
-    logger.register_variables(['l_abs_pred', 'l_scat_pred'], print_all=True)
+    logger = Logger(logdir='log/')
+    logger.register_variables(['loss', 'l_abs_pred', 'l_scat_pred'],
+                              print_all=True)
 
     print("Starting...")
-    for step in range(settings.N_STEPS):
+    for step in range(1, settings.N_STEPS + 1):
         # sample cascade positions for this step
         r_cascades = [[np.random.uniform(high=settings.LENGTH_X),
                        np.random.uniform(high=settings.LENGTH_Y),
@@ -105,18 +114,19 @@ if __name__ == '__main__':
 
         # propagate in batches
         for i in trange(settings.BATCHES_PER_STEP, leave=False):
-            session.run(propagate_batch, feed_dict={model_true.r_cascades:
-                                                    r_cascades,
-                                                    model_pred.r_cascades:
-                                                    r_cascades})
+            session.run([propagate_batch, update_loss],
+                        feed_dict={model_true.r_cascades: r_cascades,
+                                   model_pred.r_cascades: r_cascades})
 
         # apply accumulated gradients
         session.run(apply_gradients)
 
-        # reset accumulated gradients to zero and get updated parameters
-        result = session.run([reset_gradients, ice_pred._l_abs,
-                              ice_pred._l_scat])
-        logger.log(step, result[1:])
+        # get updated parameters
+        result = session.run([average_loss, ice_pred._l_abs, ice_pred._l_scat])
+        logger.log(step, result)
 
-        if (step + 1) % settings.WRITE_INTERVAL == 0:
+        # reset variables for next step
+        session.run([reset_gradients, reset_loss])
+
+        if step % settings.WRITE_INTERVAL == 0:
             logger.write()

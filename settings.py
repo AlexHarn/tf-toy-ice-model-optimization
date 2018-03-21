@@ -3,7 +3,7 @@ import tensorflow as tf
 # -------------------------------- TensorFlow ---------------------------------
 FLOAT_PRECISION = tf.float32
 CPU_ONLY = False
-RANDOM_SEED = 1234  # seed or False
+RANDOM_SEED = False  # seed or False
 
 # --------------------------------- Detector ----------------------------------
 LENGTH_X = 100  # m
@@ -21,12 +21,18 @@ L_ABS_START = 90
 L_SCAT_START = 22
 
 # --------------------------------- Training ----------------------------------
-LEARNING_RATE = 0.1
 N_STEPS = 100000000
 BATCHES_PER_STEP = 20
 BATCH_SIZE = 25000
 # each cascades contains BATCH_SIZE*BATCHES_PER_STEP/CASCADES_PER_STEP photons
 CASCADES_PER_STEP = 5
 
+# -------------------------------- Optimizer ----------------------------------
+# supported optimizers: Adam
+OPTIMIZER = 'Adam'
+
+ADAM_SETTINGS = dict(learning_rate=0.1, beta1=0, beta2=0,
+                     epsilon=1e-08)
+
 # --------------------------------- Logging -----------------------------------
-WRITE_INTERVAL = 25  # how many steps between each write
+WRITE_INTERVAL = 1  # how many steps between each write

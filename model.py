@@ -123,14 +123,25 @@ class Model:
             # absorbtion only propagate to absorbtion
             d = tf.where(d_scat < d_abs, d_scat, d_abs)
 
-            # check for hits
+            # check for hits and stop inside the DOM if hit
             t = self._detector.tf_check_for_hits(r, d, v)
-
-            # propagate
             d_abs = tf.where(t < 1., tf.zeros(tf.shape(d),
                                               dtype=settings.FLOAT_PRECISION),
                              d_abs - d)
+
+            # propagate
             r = r + tf.expand_dims(d*t, axis=-1)*v
+
+            # stop propagating if the photon is outside the cutoff radius
+            if settings.CUTOFF_RADIUS:
+                d_abs = tf.where(tf.norm(r - np.array([self._detector._l_x/2,
+                                                       self._detector._l_y/2,
+                                                       self._detector._l_z/2]),
+                                         axis=-1) < settings.CUTOFF_RADIUS
+                                 * np.linalg.norm([self._detector._l_x,
+                                                   self._detector._l_y,
+                                                   self._detector._l_z])/2,
+                                 d_abs, tf.zeros_like(d_abs))
 
             # scatter
             v = self.tf_scatter(v)

@@ -17,8 +17,14 @@ NY_STRINGS = 3
 # ----------------------------------- Ice -------------------------------------
 L_ABS_TRUE = 100
 L_SCAT_TRUE = 25
-L_ABS_START = 85
-L_SCAT_START = 50
+L_ABS_START = 100
+L_SCAT_START = 25
+
+# ------------------------------- Propagation ---------------------------------
+# Distance of the detector center at which to stop propagation to spare
+# computation time in units of norm([LENGTH_X, LENGTH_Y, LENGTH_Z])/2.
+# Set to False for no cutoff
+CUTOFF_RADIUS = 1.1
 
 # --------------------------------- Training ----------------------------------
 N_STEPS = 100000000
@@ -31,7 +37,7 @@ CASCADES_PER_STEP = 5
 # supported optimizers: Adam
 OPTIMIZER = 'Adam'
 
-ADAM_SETTINGS = dict(learning_rate=1, beta1=0.9, beta2=0.999,
+ADAM_SETTINGS = dict(learning_rate=1, beta1=0., beta2=0.,
                      epsilon=1e-08)
 
 # --------------------------------- Logging -----------------------------------

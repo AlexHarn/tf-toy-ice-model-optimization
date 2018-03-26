@@ -40,6 +40,10 @@ class Detector:
         self.tf_doms = tf.constant(np.expand_dims(self.doms, axis=0),
                                    dtype=settings.FLOAT_PRECISION)
 
+        self._l_x = l_x
+        self._l_y = l_y
+        self._l_z = l_z
+
     # -------------------------- TF Graph Building ----------------------------
     def tf_check_for_hits(self, r, d, v):
         """

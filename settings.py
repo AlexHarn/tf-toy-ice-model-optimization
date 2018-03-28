@@ -17,7 +17,7 @@ NY_STRINGS = 3
 # ----------------------------------- Ice -------------------------------------
 L_ABS_TRUE = 100
 L_SCAT_TRUE = 25
-L_ABS_START = 100
+L_ABS_START = 110
 L_SCAT_START = 25
 
 # ------------------------------- Propagation ---------------------------------
@@ -28,7 +28,7 @@ CUTOFF_RADIUS = 1.1
 
 # --------------------------------- Training ----------------------------------
 N_STEPS = 100000000
-BATCHES_PER_STEP = 200
+BATCHES_PER_STEP = 20
 BATCH_SIZE = 50000
 # each cascades contains BATCH_SIZE*BATCHES_PER_STEP/CASCADES_PER_STEP photons
 CASCADES_PER_STEP = 5
@@ -37,7 +37,7 @@ CASCADES_PER_STEP = 5
 # supported optimizers: Adam
 OPTIMIZER = 'Adam'
 
-ADAM_SETTINGS = dict(learning_rate=1, beta1=0., beta2=0.,
+ADAM_SETTINGS = dict(learning_rate=1, beta1=0.9, beta2=0.999,
                      epsilon=1e-08)
 
 # --------------------------------- Logging -----------------------------------

@@ -117,7 +117,7 @@ class Detector:
 
         # calculate distances of every photon to every DOM
         ds = tf.norm(final_positions_exp - self.tf_doms, axis=2)
-        hitlist = tf.reduce_sum(-tf.nn.softsign((ds - self._dom_radius)*1000)
+        hitlist = tf.reduce_sum(-tf.nn.softsign((ds - self._dom_radius))
                                 + 1, axis=0) / 2
 
         return hitlist
@@ -148,4 +148,4 @@ class Detector:
                                          tf.zeros_like(ds)),
                                 axis=0)
 
-        return hitlist
+        return tf.stop_gradient(hitlist)

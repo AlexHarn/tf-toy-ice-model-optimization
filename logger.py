@@ -175,11 +175,34 @@ class Logger:
 
         self._session_buffer += line
 
-    def print(self):
+    def message(self, message, step=None, printing=True):
         """
-        Prints the current session buffer contents without the last newline.
+        Loggs and optionally prints a message.
+
+        Parameters
+        ----------
+        message : String
+            The message to log
+        step : Integer
+            Current training step or None
+        printing : Boolean
+            If true the message is also printed to the screen
         """
-        print(self._session_buffer[:-1])
+        session_time = datetime.utcnow() - self._start_time
+        hours, remainder = divmod(session_time.seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+
+        if step:
+            line = ("[{:02d}:{:02d}:{:02d} {:08d}] ").format(
+                hours, minutes, seconds, step)
+        else:
+            line = ("[{:02d}:{:02d}:{:02d}] ").format(
+                hours, minutes, seconds)
+
+        line += message + '\n'
+        self._session_buffer += line
+        if printing:
+            print(line[:-1])
 
 
 # -------------------------------- Exceptions ---------------------------------

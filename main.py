@@ -62,9 +62,28 @@ if __name__ == '__main__':
     # define loss
     loss = tf.reduce_sum(tf.squared_difference(hits_true, hits_pred))
 
+    # crate variable for learning rate
+    tf_learning_rate = tf.Variable(settings.INITIAL_LEARNING_RATE,
+                                   trainable=False,
+                                   dtype=settings.FLOAT_PRECISION)
+
+    # create update operation for learning rate
+    if settings.LEARNING_DECAY_MODE == 'Linear':
+        update_learning_rate = tf.assign(tf_learning_rate, tf_learning_rate -
+                                         settings.LEARNING_DECR)
+    elif settings.LEARNING_DECAY_MODE == 'Exponential':
+        update_learning_rate = tf.assign(tf_learning_rate, tf_learning_rate *
+                                         settings.LEARNING_DECR)
+    else:
+        raise ValueError(settings.LEARNING_DECAY_MODE +
+                         " is not a supported decay mode!")
+
     # init optimizer
     if settings.OPTIMIZER == 'Adam':
-        optimizer = tf.train.AdamOptimizer(**settings.ADAM_SETTINGS)
+        optimizer = tf.train.AdamOptimizer(tf_learning_rate,
+                                           **settings.ADAM_SETTINGS)
+    elif settings.OPTIMIZER == 'GradientDescent':
+        optimizer = tf.train.GradientDescentOptimizer(tf_learning_rate)
     else:
         raise ValueError(settings.OPTIMIZER+" is not a supported optimizer!")
 
@@ -113,8 +132,8 @@ if __name__ == '__main__':
     logger.register_variables(['loss', 'l_abs_pred', 'l_scat_pred'],
                               print_all=True)
 
-    print("Starting...")
-    for step in range(1, settings.N_STEPS + 1):
+    logger.message("Starting...")
+    for step in range(1, settings.MAX_STEPS + 1):
         # sample cascade positions for this step
         r_cascades = [[np.random.uniform(high=settings.LENGTH_X),
                        np.random.uniform(high=settings.LENGTH_Y),
@@ -139,3 +158,11 @@ if __name__ == '__main__':
 
         if step % settings.WRITE_INTERVAL == 0:
             logger.write()
+
+        if step % settings.LEARNING_STEPS == 0:
+            learning_rate = session.run(update_learning_rate)
+            logger.message("Learning rate decreased to {:2.4f}"
+                           .format(learning_rate), step)
+            if learning_rate <= 0:
+                break
+    logger.message("Done.")

@@ -35,11 +35,13 @@ CASCADES_PER_STEP = 5
 
 # -------------------------------- Optimizer ----------------------------------
 INITIAL_LEARNING_RATE = 1
+# True or False to activate/deactivate learning rate decay
+LEARNING_DECAY = True
 # Decay modes: Linear or Exponential
-LEARNING_DECAY_MODE = 'Linear'
+LEARNING_DECAY_MODE = 'Exponential'
 # decrease the INITIAL_LEARNING_RATE every LEARNING_STEPS steps by
 # LEARNING_DECR linearly or exponentially
-LEARNING_DECR = 0.01
+LEARNING_DECR = 0.95
 LEARNING_STEPS = 10
 
 # supported optimizers: Adam, GradientDescent

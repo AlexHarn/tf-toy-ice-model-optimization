@@ -159,7 +159,7 @@ if __name__ == '__main__':
         if step % settings.WRITE_INTERVAL == 0:
             logger.write()
 
-        if step % settings.LEARNING_STEPS == 0:
+        if settings.LEARNING_DECAY and step % settings.LEARNING_STEPS == 0:
             learning_rate = session.run(update_learning_rate)
             logger.message("Learning rate decreased to {:2.4f}"
                            .format(learning_rate), step)

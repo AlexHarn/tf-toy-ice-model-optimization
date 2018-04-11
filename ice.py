@@ -5,10 +5,10 @@ import settings
 
 class Ice:
     """
-    Holds all absorbtion and scattering coefficients. For now the ice is only
-    devided into layers in z-direction.
+    Holds all absorption and scattering coefficients. For now the ice is only
+    divided into layers in z-direction.
 
-    Actually for now only homogenous ice is implemented.
+    Actually for now only homogeneous ice is implemented.
 
     Parameters
     ----------
@@ -28,7 +28,7 @@ class Ice:
         Parameters
         ----------
         l_abs : float
-            Absorbtion length in meters.
+            Absorption length in meters.
         l_scat : float
             Scattering length in meters.
         """
@@ -67,16 +67,16 @@ class Ice:
 
         Returns
         -------
-        The absorbtion and scattering coefficients at the given position r
+        The absorption and scattering coefficients at the given position r
         inside of the computational graph.
         """
         # TODO: Implement properly for layers
         if self._homogenous:
             return (self._l_abs, self._l_scat)
 
-    def tf_sample_absorbtion(self, r):
+    def tf_sample_absorption(self, r):
         """
-        Samples absorbtion lengths.
+        Samples absorption lengths.
 
         Parameters
         ----------
@@ -85,7 +85,7 @@ class Ice:
 
         Returns
         -------
-        Tensor for the sampled absorbtion lengths of shape(?).
+        Tensor for the sampled absorption lengths of shape(?).
         """
         return self._abs_pdf.sample(tf.shape(r)[0])
 

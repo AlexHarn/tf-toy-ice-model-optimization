@@ -28,10 +28,10 @@ class Model:
                                          shape=(settings.CASCADES_PER_STEP,
                                                 3))
 
-        # init uniform pdf
+        # initialize uniform pdf
         self._uni_pdf = tf.distributions.Uniform()
 
-        # init cascades
+        # initialize cascades
         self.tf_init_cascades()
 
         # propagate
@@ -108,19 +108,19 @@ class Model:
 
     def tf_propagate(self):
         """
-        Propagates the photons until theiy are absorbed or hit a DOM.
+        Propagates the photons until they are absorbed or hit a DOM.
         """
         def body(d_abs, r, v):
             # sample distances until next scattering
             d_scat = self._ice.tf_sample_scatter(r)
 
-            # make sure we stop the popagation after d_abs
+            # make sure we stop the propagation after d_abs
             d_abs = tf.where(d_abs > 0., d_abs,
                              tf.zeros(tf.shape(d_abs),
                                       dtype=settings.FLOAT_PRECISION))
 
             # if the distance is longer than the remaining distance until
-            # absorbtion only propagate to absorbtion
+            # absorption only propagate to absorption
             d = tf.where(d_scat < d_abs, d_scat, d_abs)
 
             # check for hits and stop inside the DOM if hit
@@ -151,4 +151,4 @@ class Model:
         self.final_positions = tf.while_loop(
             lambda d_abs, r, v: tf.less(0., tf.reduce_max(d_abs)),
             lambda d_abs, r, v: body(d_abs, r, v),
-            [self._ice.tf_sample_absorbtion(self._r0), self._r0, self._v0])[1]
+            [self._ice.tf_sample_absorption(self._r0), self._r0, self._v0])[1]

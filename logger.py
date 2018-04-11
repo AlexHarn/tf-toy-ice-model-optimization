@@ -89,7 +89,7 @@ class Logger:
             supposed to get logged. Variables must be scalar.
         print_variables : list of strings
             The variables which are supposed to get printed on every step if
-            Logger.log is called with printig=True. Must be a subset of
+            Logger.log is called with printing=True. Must be a subset of
             variables.
         print_all : boolean
             If true make print_variables = variables. Overrides the
@@ -105,7 +105,7 @@ class Logger:
         self._variables = variables
         self._print_variables = set(print_variables)
 
-        # init pandas dataframe buffer
+        # initialize pandas dataframe buffer
         self._data_buffer = pd.DataFrame(columns=variables)
 
     # ----------------------- Writing to Files --------------------------------
@@ -177,7 +177,7 @@ class Logger:
 
     def message(self, message, step=None, printing=True):
         """
-        Loggs and optionally prints a message.
+        Logs and optionally prints a message.
 
         Parameters
         ----------

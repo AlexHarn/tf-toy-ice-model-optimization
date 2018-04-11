@@ -78,7 +78,7 @@ if __name__ == '__main__':
         raise ValueError(settings.LEARNING_DECAY_MODE +
                          " is not a supported decay mode!")
 
-    # init optimizer
+    # initialize the optimizer
     if settings.OPTIMIZER == 'Adam':
         optimizer = tf.train.AdamOptimizer(tf_learning_rate,
                                            **settings.ADAM_SETTINGS)

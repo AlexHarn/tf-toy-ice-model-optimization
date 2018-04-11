@@ -13,18 +13,18 @@ class Detector:
     ----------
     l_x : float or int, length in m
         Detector length in x-direction.
-    l_y : float or int, lenth in m
+    l_y : float or int, length in m
         Detector length in y-direction.
-    l_z : float or int, lenth in m
+    l_z : float or int, length in m
         Detector length in z-direction.
     dom_radius : float, radius in m
         The radius of the DOMs.
     doms_per_string : integer
         Number of DOMs per string. Strings go down in z-direction.
     nx_strings : integer
-        Number of strins in x-direction.
+        Number of strings in x-direction.
     ny_strings : integer
-        Number of strins in y-direction.
+        Number of strings in y-direction.
     """
     # ---------------------------- Initialization -----------------------------
     def __init__(self, l_x=1000, l_y=1000, l_z=1000, dom_radius=0.124,
@@ -65,8 +65,7 @@ class Detector:
         where no hit occurs.
         """
         # expand vectors to shape [batch, dom, coordinate]
-        # TODO: Maybe change these vectors to this dimension
-        #       in all methods?
+        # TODO: Maybe change these vectors to this dimension in all methods?
         v_exp = tf.expand_dims(v, axis=1)
         r_exp = tf.expand_dims(r, axis=1)
         d_exp = tf.expand_dims(d, axis=1)
@@ -84,9 +83,8 @@ class Detector:
         ds_exp = tf.norm(-diff_doms_r + v_exp*ts_exp, axis=2, keep_dims=True)
 
         # remove last dimension again
-        # TODO: possibly make all vectors have shape
-        #       [batch, dom, coordinate]
-        #       that way expanding and squezing can be avoided
+        # TODO: possibly make all vectors have shape [batch, dom, coordinate]
+        # that way expanding and squeezing can be avoided
         ds = tf.squeeze(ds_exp, axis=2)
         ts = tf.squeeze(ts_exp, axis=2)/d_exp
 
@@ -102,17 +100,17 @@ class Detector:
 
         Parameters
         ----------
-        final_positions : tf tensor of shape (?, 3)
+        final_positions : TF tensor of shape (?, 3)
             The final positions after every photon has been absorbed or hit a
             DOM.
 
         Returns
         -------
-        The DOM hitlist which contains a tensorflow variable for each DOM as a
-        measure for the number of photons that ended up inside the DOM.
+        The DOM hitlist which contains a TF variable for each DOM as a measure
+        for the number of photons that ended up inside the DOM.
         """
-        # TODO: change vectors to dimension [batch, dom, coordinate]
-        #       get rid of expand and squeze
+        # TODO: change vectors to dimension [batch, dom, coordinate] get rid of
+        # expand and squeeze
         final_positions_exp = tf.expand_dims(final_positions, axis=1)
 
         # calculate distances of every photon to every DOM
@@ -128,17 +126,17 @@ class Detector:
 
         Parameters
         ----------
-        final_positions : tf tensor of shape (?, 3)
+        final_positions : TF tensor of shape (?, 3)
             The final positions after every photon has been absorbed or hit a
             DOM.
 
         Returns
         -------
-        The DOM hitlist which contains the number of hits for each DOM as a
-        tensorflow variable.
+        The DOM hitlist which contains the number of hits for each DOM as a TF
+        variable.
         """
-        # TODO: change vectors to dimension [batch, dom, coordinate]
-        #       get rid of expand and squeze
+        # TODO: change vectors to dimension [batch, dom, coordinate] get rid of
+        # expand and squeeze
         final_positions_exp = tf.expand_dims(final_positions, axis=1)
 
         # calculate distances of every photon to every DOM

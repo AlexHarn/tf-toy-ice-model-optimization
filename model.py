@@ -56,14 +56,14 @@ class Model:
                                  tf.cos(thetas)])
 
     # ------------------------------ Simulation -------------------------------
-    def tf_sample_normal_vectors(self, r):
+    def tf_sample_normal_vectors(self, v):
         """
         Samples normalized random 3d vectors with uniformly distributed
-        direction which is perpendicular to r.
+        direction which is perpendicular to v.
 
         Parameters
         ----------
-        r : TF tensor, shape(?, 3)
+        v : TF tensor, shape(?, 3)
             The vectors for which random normal vectors are desired.
 
         Returns
@@ -71,14 +71,14 @@ class Model:
         The random normal vector tensor of shape(?, 3).
         """
         # sample random vectors uniformly in all directions
-        thetas = self._uni_pdf.sample(tf.shape(r)[0])*np.pi
-        phis = self._uni_pdf.sample(tf.shape(r)[0])*2*np.pi
+        thetas = self._uni_pdf.sample(tf.shape(v)[0])*np.pi
+        phis = self._uni_pdf.sample(tf.shape(v)[0])*2*np.pi
         sinTs = tf.sin(thetas)
 
         # construct normal vectors by computing the cross products
-        v = tf.cross(tf.transpose([sinTs*tf.cos(phis), sinTs*tf.sin(phis),
-                                   tf.cos(thetas)]), r)
-        return v/tf.norm(v, axis=-1, keep_dims=True)
+        n = tf.cross(tf.transpose([sinTs*tf.cos(phis), sinTs*tf.sin(phis),
+                                   tf.cos(thetas)]), v)
+        return n/tf.norm(n, axis=-1, keep_dims=True)
 
     def tf_scatter(self, v):
         """
@@ -115,9 +115,7 @@ class Model:
             d_scat = self._ice.tf_sample_scatter(r)
 
             # make sure we stop the propagation after d_abs
-            d_abs = tf.where(d_abs > 0., d_abs,
-                             tf.zeros(tf.shape(d_abs),
-                                      dtype=settings.FLOAT_PRECISION))
+            d_abs = tf.where(d_abs > 0., d_abs, tf.zeros_like(d_abs))
 
             # if the distance is longer than the remaining distance until
             # absorption only propagate to absorption
@@ -125,9 +123,7 @@ class Model:
 
             # check for hits and stop inside the DOM if hit
             t = self._detector.tf_check_for_hits(r, d, v)
-            d_abs = tf.where(t < 1., tf.zeros(tf.shape(d),
-                                              dtype=settings.FLOAT_PRECISION),
-                             d_abs - d)
+            d_abs = tf.where(t < 1., tf.zeros_like(d), d_abs - d)
 
             # propagate
             r = r + tf.expand_dims(d*t, axis=-1)*v
@@ -143,8 +139,8 @@ class Model:
                                                    self._detector._l_z])/2,
                                  d_abs, tf.zeros_like(d_abs))
 
-            # scatter
-            v = self.tf_scatter(v)
+            # scatter photons which have not been stopped yet
+            v = tf.where(d_abs > 0., self.tf_scatter(v), v)
 
             return [d_abs, r, v]
 

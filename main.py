@@ -150,7 +150,7 @@ if __name__ == '__main__':
         session.run(apply_gradients)
 
         # get updated parameters
-        result = session.run([average_loss, ice_pred._l_abs, ice_pred._l_scat])
+        result = session.run([average_loss, ice_pred.l_abs, ice_pred.l_scat])
         logger.log(step, result)
 
         # reset variables for next step

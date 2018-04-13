@@ -36,8 +36,7 @@ class Ice:
         self._homogenous = True
         if self._trainable:
             self._l_abs = tf.Variable(l_abs, dtype=settings.FLOAT_PRECISION)
-            # self._l_scat = tf.Variable(l_scat,
-            # dtype=settings.FLOAT_PRECISION)
+            # self._l_scat = tf.Variable(l_scat, dtype=settings.FLOAT_PRECISION)
         else:
             self._l_abs = tf.constant(l_abs, dtype=settings.FLOAT_PRECISION)
         self._l_scat = tf.constant(l_scat, dtype=settings.FLOAT_PRECISION)

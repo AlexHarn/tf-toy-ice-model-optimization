@@ -110,7 +110,7 @@ class Model:
         """
         Propagates the photons until they are absorbed or hit a DOM.
         """
-        def body(d_abs, r, v):
+        def body(d_abs, r, v, t):
             # sample distances until next scattering
             d_scat = self._ice.tf_sample_scatter(r)
 
@@ -122,11 +122,14 @@ class Model:
             d = tf.where(d_scat < d_abs, d_scat, d_abs)
 
             # check for hits and stop inside the DOM if hit
-            t = self._detector.tf_check_for_hits(r, d, v)
-            d_abs = tf.where(t < 1., tf.zeros_like(d), d_abs - d)
+            rel_d_til_hit = self._detector.tf_check_for_hits(r, d, v)
+            d_abs = tf.where(rel_d_til_hit < 1., tf.zeros_like(d), d_abs - d)
 
             # propagate
-            r = r + tf.expand_dims(d*t, axis=-1)*v
+            r += tf.expand_dims(d*rel_d_til_hit, axis=-1)*v
+
+            # log traveltimes (or distance, just differ by constant speed)
+            t += d*rel_d_til_hit
 
             # stop propagating if the photon is outside the cutoff radius
             if settings.CUTOFF_RADIUS:
@@ -142,9 +145,15 @@ class Model:
             # scatter photons which have not been stopped yet
             v = tf.where(d_abs > 0., self.tf_scatter(v), v)
 
-            return [d_abs, r, v]
+            return [d_abs, r, v, t]
 
-        self.final_positions = tf.while_loop(
-            lambda d_abs, r, v: tf.less(0., tf.reduce_max(d_abs)),
-            lambda d_abs, r, v: body(d_abs, r, v),
-            [self._ice.tf_sample_absorption(self._r0), self._r0, self._v0])[1]
+        results = tf.while_loop(
+            lambda d_abs, r, v, t: tf.less(0., tf.reduce_max(d_abs)),
+            lambda d_abs, r, v, t: body(d_abs, r, v, t),
+            [self._ice.tf_sample_absorption(self._r0), self._r0, self._v0,
+             tf.zeros([tf.shape(self._r0)[0]],
+                      dtype=settings.FLOAT_PRECISION)],
+            parallel_iterations=1)
+
+        self.final_positions = results[1]
+        self.arrival_times = results[3]

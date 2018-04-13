@@ -17,8 +17,8 @@ NY_STRINGS = 3
 # ----------------------------------- Ice -------------------------------------
 L_ABS_TRUE = 100
 L_SCAT_TRUE = 25
-L_ABS_START = 80
-L_SCAT_START = 25
+L_ABS_START = 100
+L_SCAT_START = 21
 
 # ------------------------------- Propagation ---------------------------------
 # Distance of the detector center at which to stop propagation to spare
@@ -28,7 +28,7 @@ CUTOFF_RADIUS = 1.1
 
 # --------------------------------- Training ----------------------------------
 MAX_STEPS = 100000000
-BATCHES_PER_STEP = 20
+BATCHES_PER_STEP = 10
 BATCH_SIZE = 50000
 # each cascades contains BATCH_SIZE*BATCHES_PER_STEP/CASCADES_PER_STEP photons
 CASCADES_PER_STEP = 50
@@ -36,13 +36,13 @@ CASCADES_PER_STEP = 50
 # -------------------------------- Optimizer ----------------------------------
 INITIAL_LEARNING_RATE = 1
 # True or False to activate/deactivate learning rate decay
-LEARNING_DECAY = True
+LEARNING_DECAY = False
 # Decay modes: Linear or Exponential
 LEARNING_DECAY_MODE = 'Exponential'
 # decrease the INITIAL_LEARNING_RATE every LEARNING_STEPS steps by
 # LEARNING_DECR linearly or exponentially
 LEARNING_DECR = 0.95
-LEARNING_STEPS = 10
+LEARNING_STEPS = 5
 
 # supported optimizers: Adam, GradientDescent
 OPTIMIZER = 'Adam'

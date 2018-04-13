@@ -32,14 +32,14 @@ class Ice:
         l_scat : float
             Scattering length in meters.
         """
-        # only train absorption for now without time information
+        # only train scattering for now with only time information
         self._homogenous = True
         if self._trainable:
-            self._l_abs = tf.Variable(l_abs, dtype=settings.FLOAT_PRECISION)
-            # self._l_scat = tf.Variable(l_scat, dtype=settings.FLOAT_PRECISION)
+            # self._l_abs = tf.Variable(l_abs, dtype=settings.FLOAT_PRECISION)
+            self._l_scat = tf.Variable(l_scat, dtype=settings.FLOAT_PRECISION)
         else:
-            self._l_abs = tf.constant(l_abs, dtype=settings.FLOAT_PRECISION)
-        self._l_scat = tf.constant(l_scat, dtype=settings.FLOAT_PRECISION)
+            self._l_scat = tf.constant(l_scat, dtype=settings.FLOAT_PRECISION)
+        self._l_abs = tf.constant(l_abs, dtype=settings.FLOAT_PRECISION)
 
         self._abs_pdf = tf.distributions.Exponential(1/self._l_abs)
         self._scat_pdf = tf.distributions.Exponential(1/self._l_scat)

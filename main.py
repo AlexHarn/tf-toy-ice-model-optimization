@@ -46,23 +46,14 @@ if __name__ == '__main__':
         config = tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True))
     session = tf.Session(config=config)
 
-    # define hitlists
-    hits_true_biased = detector.tf_count_hits(model_true.final_positions)
-    hits_pred_soft = detector.tf_soft_count_hits(model_pred.final_positions)
-    hits_pred_hard = detector.tf_count_hits(model_pred.final_positions)
-
-    # (reverse) bias correct true hits and take logs
-    corrector = tf.stop_gradient(
-        hits_pred_soft - hits_pred_hard)*tf.reduce_sum(hits_pred_hard) \
-        / tf.reduce_sum(hits_true_biased)
-
-    hits_true = tf.log(hits_true_biased + corrector + 1)
-    hits_pred = tf.log(hits_pred_soft + 1)
-
     # define loss
-    loss = tf.reduce_sum(tf.squared_difference(hits_true, hits_pred))
+    # chi-squared for average arrival times per DOM
+    loss = detector.tf_calc_arrival_times_loss(model_true.arrival_times,
+                                               model_true.final_positions,
+                                               model_pred.arrival_times,
+                                               model_pred.final_positions)
 
-    # crate variable for learning rate
+    # create variable for learning rate
     tf_learning_rate = tf.Variable(settings.INITIAL_LEARNING_RATE,
                                    trainable=False,
                                    dtype=settings.FLOAT_PRECISION)

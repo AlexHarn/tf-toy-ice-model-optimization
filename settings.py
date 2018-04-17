@@ -28,10 +28,10 @@ CUTOFF_RADIUS = 1.1
 
 # --------------------------------- Training ----------------------------------
 MAX_STEPS = 100000000
-BATCHES_PER_STEP = 10
+BATCHES_PER_STEP = 400
 BATCH_SIZE = 50000
 # each cascades contains BATCH_SIZE*BATCHES_PER_STEP/CASCADES_PER_STEP photons
-CASCADES_PER_STEP = 50
+CASCADES_PER_STEP = 1
 
 # -------------------------------- Optimizer ----------------------------------
 INITIAL_LEARNING_RATE = 1

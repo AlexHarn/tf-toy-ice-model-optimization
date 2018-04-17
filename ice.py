@@ -14,11 +14,19 @@ class Ice:
     ----------
     trainable : boolean
         Decides if the ice parameters are supposed to be trainable TF
-        variables or simply constants.
+        variables or simply constants. Overwrites the placeholders flag.
+
+    placeholders : boolean
+        If True the parameters will be TF placeholders.
     """
     # ---------------------------- Initialization -----------------------------
-    def __init__(self, trainable=False):
+    def __init__(self, trainable=False, placeholders=False):
         self._trainable = trainable
+        if not trainable:
+            self._placeholders = placeholders
+        else:
+            self._placeholders = False
+
         self._homogenous = False
 
     def homogeneous_init(self, l_abs=100, l_scat=25):
@@ -32,26 +40,22 @@ class Ice:
         l_scat : float
             Scattering length in meters.
         """
-        # only train scattering for now with only time information
+        # only train absorption for now without time information
         self._homogenous = True
         if self._trainable:
-            # self._l_abs = tf.Variable(l_abs, dtype=settings.FLOAT_PRECISION)
-            self._l_scat = tf.Variable(l_scat, dtype=settings.FLOAT_PRECISION)
+            self.l_abs = tf.Variable(l_abs, dtype=settings.FLOAT_PRECISION)
+            self.l_scat = tf.constant(l_scat, dtype=settings.FLOAT_PRECISION)
+        elif self._placeholders:
+            self.l_abs = tf.placeholder(dtype=settings.FLOAT_PRECISION,
+                                        shape=())
+            self.l_scat = tf.placeholder(dtype=settings.FLOAT_PRECISION,
+                                         shape=())
         else:
-            self._l_scat = tf.constant(l_scat, dtype=settings.FLOAT_PRECISION)
-        self._l_abs = tf.constant(l_abs, dtype=settings.FLOAT_PRECISION)
+            self.l_abs = tf.constant(l_abs, dtype=settings.FLOAT_PRECISION)
+            self.l_scat = tf.constant(l_scat, dtype=settings.FLOAT_PRECISION)
 
-        self._abs_pdf = tf.distributions.Exponential(1/self._l_abs)
-        self._scat_pdf = tf.distributions.Exponential(1/self._l_scat)
-
-    def random_init(self, n_layers=10, z_start=0, z_end=1000):
-        """
-        Initializes the ice randomly.
-
-        Parameters
-        ----------
-        """
-        # TODO: Implement
+        self._abs_pdf = tf.distributions.Exponential(1/self.l_abs)
+        self._scat_pdf = tf.distributions.Exponential(1/self.l_scat)
 
     # -------------------------- TF Graph Building ----------------------------
     def tf_get_coefficients(self, r):
@@ -71,7 +75,7 @@ class Ice:
         """
         # TODO: Implement properly for layers
         if self._homogenous:
-            return (self._l_abs, self._l_scat)
+            return (self.l_abs, self.l_scat)
 
     def tf_sample_absorption(self, r):
         """

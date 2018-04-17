@@ -63,6 +63,7 @@ hits_true = tf.log(hits_true_biased + corrector + 1)
 hits_pred = tf.log(hits_pred_soft + 1)
 
 # define loss
+# loss = tf.reduce_sum(tf.squared_difference(hits_true, hits_pred))
 loss = detector.tf_calc_arrival_times_loss(model_true.arrival_times,
                                            model_true.final_positions,
                                            model_pred.arrival_times,
@@ -79,7 +80,7 @@ if __name__ == '__main__':
     session.run(tf.global_variables_initializer())
 
     # initialize the logger
-    logger = Logger(logdir='/data/user/aharnisch/log/gridsearch/')
+    logger = Logger(logdir='./gridsearch/')
     logger.register_variables(['loss', 'l_abs', 'l_scat'], print_all=True)
 
     # initialize grid array
@@ -89,7 +90,7 @@ if __name__ == '__main__':
     for i in range(len(L_ABS)):
         for j in range(len(L_SCAT)):
             # sample cascade positions for this step
-            r_cascades = [[50, 50, 25]
+            r_cascades = [[500, 500, 250]
                           for n in range(settings.CASCADES_PER_STEP)]
 
             # propagate in batches

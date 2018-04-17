@@ -208,4 +208,19 @@ class Detector:
         avg_t_pred = tf.reduce_sum(
             hit_mask*hitmask_pred*arrival_times_exp_pred, axis=0)/hitlist_pred
 
-        return tf.reduce_sum(tf.squared_difference(avg_t_pred, avg_t_true))
+        # define hitlists
+        hits_true_biased = self.tf_count_hits(final_positions_true)
+        hits_pred_soft = self.tf_soft_count_hits(final_positions_pred)
+        hits_pred_hard = self.tf_count_hits(final_positions_pred)
+
+        # (reverse) bias correct true hits and take logs
+        corrector = tf.stop_gradient(hits_pred_soft - hits_pred_hard) \
+            * tf.reduce_sum(hits_pred_hard)/tf.reduce_sum(hits_true_biased)
+
+        hits_true = tf.log(hits_true_biased + corrector + 1)
+        hits_pred = tf.log(hits_pred_soft + 1)
+
+        dom_loss = tf.squared_difference(hits_true, hits_pred) \
+            * tf.squared_difference(avg_t_pred, avg_t_true)
+
+        return tf.reduce_sum(dom_loss)

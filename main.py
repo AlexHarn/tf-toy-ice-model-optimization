@@ -1,7 +1,6 @@
 from __future__ import division
 import tensorflow as tf
 import numpy as np
-from tqdm import trange
 
 from ice import Ice
 from detector import Detector
@@ -87,41 +86,8 @@ if __name__ == '__main__':
     else:
         raise ValueError(settings.OPTIMIZER+" is not a supported optimizer!")
 
-    # grab all trainable variables
-    trainable_variables = tf.trainable_variables()
-
-    # define variables to save the gradients in each batch
-    accumulated_gradients = [tf.Variable(tf.zeros_like(tv.initialized_value()),
-                                         trainable=False) for tv in
-                             trainable_variables]
-
-    # define operation to reset the accumulated gradients to zero
-    reset_gradients = [gradient.assign(tf.zeros_like(gradient)) for gradient in
-                       accumulated_gradients]
-
-    # define the gradients
-    gradients = optimizer.compute_gradients(-loss, trainable_variables)
-
-    # Note: Gradients is a list of tuples containing the gradient and the
-    # corresponding variable so gradient[0] is the actual gradient. Also divide
-    # the gradients by BATCHES_PER_STEP so the learning rate still refers to
-    # steps not batches.
-
-    # define operation to propagate a batch and accumulating the gradients
-    propagate_batch = [
-        accumulated_gradient.assign_add(gradient[0]/settings.BATCHES_PER_STEP)
-        for accumulated_gradient, gradient in zip(accumulated_gradients,
-                                                  gradients)]
-
     # define operation to apply the gradients
-    apply_gradients = optimizer.apply_gradients([
-        (accumulated_gradient, gradient[1]) for accumulated_gradient, gradient
-        in zip(accumulated_gradients, gradients)])
-
-    # define variable and operations to track the average batch loss
-    average_loss = tf.Variable(0., trainable=False)
-    update_loss = average_loss.assign_add(loss/settings.BATCHES_PER_STEP)
-    reset_loss = average_loss.assign(0.)
+    minimize = optimizer.minimize(-loss)
 
     # initialize all variables
     session.run(tf.global_variables_initializer())
@@ -134,27 +100,17 @@ if __name__ == '__main__':
 
     logger.message("Starting...")
     for step in range(1, settings.MAX_STEPS + 1):
-        # sample cascade positions for this step
+        # sample cascade position for this step
         r_cascades = [[np.random.uniform(high=settings.LENGTH_X),
                        np.random.uniform(high=settings.LENGTH_Y),
-                       np.random.uniform(high=settings.LENGTH_Z)]
-                      for i in range(settings.CASCADES_PER_STEP)]
+                       np.random.uniform(high=settings.LENGTH_Z)]]
 
-        # propagate in batches
-        for i in trange(settings.BATCHES_PER_STEP, leave=False):
-            session.run([propagate_batch, update_loss],
-                        feed_dict={model_true.r_cascades: r_cascades,
-                                   model_pred.r_cascades: r_cascades})
-
-        # apply accumulated gradients
-        session.run(apply_gradients)
+        result = session.run([minimize, loss, ice_pred.l_abs, ice_pred.l_scat],
+                             feed_dict={model_true.r_cascades: r_cascades,
+                                        model_pred.r_cascades: r_cascades})
 
         # get updated parameters
-        result = session.run([average_loss, ice_pred.l_abs, ice_pred.l_scat])
-        logger.log(step, result)
-
-        # reset variables for next step
-        session.run([reset_gradients, reset_loss])
+        logger.log(step, result[1:])
 
         if step % settings.WRITE_INTERVAL == 0:
             logger.write()

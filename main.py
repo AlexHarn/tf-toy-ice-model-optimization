@@ -100,7 +100,7 @@ if __name__ == '__main__':
                        accumulated_gradients]
 
     # define the gradients
-    gradients = optimizer.compute_gradients(loss, trainable_variables)
+    gradients = optimizer.compute_gradients(-loss, trainable_variables)
 
     # Note: Gradients is a list of tuples containing the gradient and the
     # corresponding variable so gradient[0] is the actual gradient. Also divide

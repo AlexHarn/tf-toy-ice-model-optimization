@@ -61,33 +61,11 @@ if __name__ == '__main__':
     # define loss
     loss = tf.reduce_sum(tf.squared_difference(hits_true, hits_pred))
 
-    # crate variable for learning rate
-    tf_learning_rate = tf.Variable(settings.INITIAL_LEARNING_RATE,
-                                   trainable=False,
-                                   dtype=settings.FLOAT_PRECISION)
-
-    # create update operation for learning rate
-    if settings.LEARNING_DECAY_MODE == 'Linear':
-        update_learning_rate = tf.assign(tf_learning_rate, tf_learning_rate -
-                                         settings.LEARNING_DECR)
-    elif settings.LEARNING_DECAY_MODE == 'Exponential':
-        update_learning_rate = tf.assign(tf_learning_rate, tf_learning_rate *
-                                         settings.LEARNING_DECR)
-    else:
-        raise ValueError(settings.LEARNING_DECAY_MODE +
-                         " is not a supported decay mode!")
-
     # initialize the optimizer
-    if settings.OPTIMIZER == 'Adam':
-        optimizer = tf.train.AdamOptimizer(tf_learning_rate,
-                                           **settings.ADAM_SETTINGS)
-    elif settings.OPTIMIZER == 'GradientDescent':
-        optimizer = tf.train.GradientDescentOptimizer(tf_learning_rate)
-    else:
-        raise ValueError(settings.OPTIMIZER+" is not a supported optimizer!")
+    optimizer = tf.train.AdamOptimizer(settings.LEARNING_RATE)
 
     # define operation to apply the gradients
-    minimize = optimizer.minimize(-loss)
+    minimize = optimizer.minimize(loss)
 
     # initialize all variables
     session.run(tf.global_variables_initializer())
@@ -115,10 +93,4 @@ if __name__ == '__main__':
         if step % settings.WRITE_INTERVAL == 0:
             logger.write()
 
-        if settings.LEARNING_DECAY and step % settings.LEARNING_STEPS == 0:
-            learning_rate = session.run(update_learning_rate)
-            logger.message("Learning rate decreased to {:2.4f}"
-                           .format(learning_rate), step)
-            if learning_rate <= 0:
-                break
     logger.message("Done.")

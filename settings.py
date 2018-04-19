@@ -28,25 +28,12 @@ CUTOFF_RADIUS = 1.1
 
 # --------------------------------- Training ----------------------------------
 MAX_STEPS = 100000000
-BATCHES_PER_STEP = 5
+BATCHES_PER_STEP = 1
 BATCH_SIZE = 50000
 # each cascades contains BATCH_SIZE*BATCHES_PER_STEP/CASCADES_PER_STEP photons
 CASCADES_PER_STEP = 1
 
-# -------------------------------- Optimizer ----------------------------------
-INITIAL_LEARNING_RATE = 10
-# True or False to activate/deactivate learning rate decay
-LEARNING_DECAY = True
-# Decay modes: Linear or Exponential
-LEARNING_DECAY_MODE = 'Exponential'
-# decrease the INITIAL_LEARNING_RATE every LEARNING_STEPS steps by
-# LEARNING_DECR linearly or exponentially
-LEARNING_DECR = 0.95
-LEARNING_STEPS = 10
-
-# supported optimizers: Adam, GradientDescent
-OPTIMIZER = 'Adam'
-ADAM_SETTINGS = dict(beta1=0.9, beta2=0.999, epsilon=1e-08)
+LEARNING_RATE = 10
 
 # --------------------------------- Logging -----------------------------------
 WRITE_INTERVAL = 1  # how many steps between each write

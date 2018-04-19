@@ -40,11 +40,11 @@ class Ice:
         l_scat : float
             Scattering length in meters.
         """
-        # only train absorption for now without time information
+        # only train scattering, which triggers the gradient sign bug
         self._homogenous = True
         if self._trainable:
-            self.l_abs = tf.Variable(l_abs, dtype=settings.FLOAT_PRECISION)
-            self.l_scat = tf.constant(l_scat, dtype=settings.FLOAT_PRECISION)
+            self.l_abs = tf.constant(l_abs, dtype=settings.FLOAT_PRECISION)
+            self.l_scat = tf.Variable(l_scat, dtype=settings.FLOAT_PRECISION)
         elif self._placeholders:
             self.l_abs = tf.placeholder(dtype=settings.FLOAT_PRECISION,
                                         shape=())

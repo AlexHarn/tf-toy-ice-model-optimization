@@ -38,8 +38,17 @@ def tf_propagate(r0, v0, l_abs, l_scat):
         r += d*v
         d_abs -= d
 
+        # stop photons which are inside of DOMs, photons are allowed to skip
+        # over DOMs if they are not scattered directly into them. Otherwise
+        # they could not get past any DOM in 1d
+        r_exp = tf.expand_dims(r, axis=1)
+        # calculate distances of every photon to every DOM
+        ds = tf.abs(r_exp - tf_doms)
+        ds = tf.reduce_min(ds, axis=1)
+        d_abs = tf.where(ds < settings.DOM_RADIUS, tf.zeros_like(d_abs), d_abs)
+
         # scatter photons
-        v = uni_pdf.sample(settings.BATCH_SIZE) - 0.5
+        v = uni_pdf.sample(settings.BATCH_SIZE) - 0.1
         v = tf.where(v > 0, tf.ones_like(v), -tf.ones_like(v))
 
         return [d_abs, r, v]
@@ -111,9 +120,9 @@ if __name__ == '__main__':
     l_scat_true = tf.constant(settings.L_SCAT_TRUE,
                               dtype=settings.FLOAT_PRECISION)
 
-    l_abs_pred = tf.Variable(settings.L_ABS_START,
+    l_abs_pred = tf.constant(settings.L_ABS_START,
                              dtype=settings.FLOAT_PRECISION)
-    l_scat_pred = tf.constant(settings.L_SCAT_START,
+    l_scat_pred = tf.Variable(settings.L_SCAT_START,
                               dtype=settings.FLOAT_PRECISION)
 
     # initialize the detector

@@ -1,6 +1,5 @@
 from __future__ import division
 import tensorflow as tf
-import tfquaternion as tfq
 import numpy as np
 import settings
 
@@ -93,18 +92,11 @@ class Model:
         -------
         The scattered direction tensor of shape(?, 3)
         """
-        # sample cos(theta)
-        cosTs = 2*self._uni_pdf.sample(tf.shape(v)[0])**(1/19) - 1
-        cosT2s = tf.sqrt((cosTs + 1)/2)
-        sinT2s = tf.sqrt((1 - cosTs)/2)
-
-        ns = tf.transpose(self.tf_sample_normal_vectors(v) *
-                          tf.expand_dims(sinT2s, axis=-1))
-        # ignore the fact that n could be parallel to v, what's the probability
-        # of that happening?
-
-        q = tfq.Quaternion(tf.transpose([cosT2s, ns[0], ns[1], ns[2]]))
-        return tfq.rotate_vector_by_quaternion(q, v)
+        uni_pdf = tf.distributions.Uniform()
+        u = uni_pdf.sample(settings.BATCH_SIZE) - 0.1
+        u = tf.expand_dims(u, axis=1)
+        u = tf.tile(u, [1, 3])
+        return tf.where(u > 0, tf.ones_like(u)*v, -tf.ones_like(u)*v)
 
     def tf_propagate(self):
         """

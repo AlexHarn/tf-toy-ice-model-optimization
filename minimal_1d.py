@@ -6,7 +6,7 @@ import settings
 from logger import Logger
 
 
-def tf_propagate(r0, v0, l_abs, l_scat):
+def tf_propagate(r0, v0, l_abs, l_scat, max_z, tag):
     """
     Propagates the photons until they are absorbed.
 
@@ -23,7 +23,13 @@ def tf_propagate(r0, v0, l_abs, l_scat):
     scat_pdf = tf.distributions.Exponential(1/l_scat)
     uni_pdf = tf.distributions.Uniform()
 
-    def body(d_abs, r, v):
+    t0 = tf.zeros_like(r0)
+    i0 = tf.constant(0)
+
+    def body(d_abs, r, v, t, i):
+        # count iterations
+        i += 1
+
         # sample distances until next scattering
         d_scat = scat_pdf.sample(settings.BATCH_SIZE)
 
@@ -34,30 +40,37 @@ def tf_propagate(r0, v0, l_abs, l_scat):
         # absorption only propagate to absorption
         d = tf.where(d_scat < d_abs, d_scat, d_abs)
 
+        # maximally go to boundary
+        d = tf.where(tf.abs(r + d*v) > max_z,
+                     d - (tf.abs(r + d*v) - max_z) + 1, 
+                     d)
+
         # propagate
+        # r = tf.Print(r, [r],'[{}]r'.format(tag), summarize=5)
         r += d*v
         d_abs -= d
 
-        # stop photons which are inside of DOMs, photons are allowed to skip
-        # over DOMs if they are not scattered directly into them. Otherwise
-        # they could not get past any DOM in 1d
-        r_exp = tf.expand_dims(r, axis=1)
-        # calculate distances of every photon to every DOM
-        ds = tf.abs(r_exp - tf_doms)
-        ds = tf.reduce_min(ds, axis=1)
-        d_abs = tf.where(ds < settings.DOM_RADIUS, tf.zeros_like(d_abs), d_abs)
+        # log distance traveled
+        # r = tf.Print(r, [t],'[{}]t'.format(tag), summarize=5)
+        t += d
+
+        # stop photons which have reached a minimal distance to either side:
+        d_abs = tf.where(tf.abs(r) > max_z, tf.zeros_like(d_abs), d_abs)
 
         # scatter photons
-        v = uni_pdf.sample(settings.BATCH_SIZE) - 0.1
+        v = uni_pdf.sample(settings.BATCH_SIZE) - 0.3
         v = tf.where(v > 0, tf.ones_like(v), -tf.ones_like(v))
 
-        return [d_abs, r, v]
+        return [d_abs, r, v, t, i]
 
-    return tf.while_loop(
-        lambda d_abs, r, v: tf.less(0., tf.reduce_max(d_abs)),
-        lambda d_abs, r, v: body(d_abs, r, v),
-        [abs_pdf.sample(settings.BATCH_SIZE), r0, v0],
-        parallel_iterations=1)[1]
+    d_abs, r, v, t, i =  tf.while_loop(
+        lambda d_abs, r, v, t, i: tf.less(0., tf.reduce_max(d_abs)),
+        # lambda d_abs, r, v, t, i: tf.less(i, 4),
+        lambda d_abs, r, v, t, i: body(d_abs, r, v, t, i),
+        [abs_pdf.sample(settings.BATCH_SIZE), r0, v0, t0, i0],
+        parallel_iterations=1)
+
+    return t
 
 
 def tf_soft_count_hits(final_positions, tf_doms):
@@ -148,27 +161,22 @@ if __name__ == '__main__':
     v0_pred = tf.where(v0_pred > 0, tf.ones_like(v0_pred),
                        -tf.ones_like(v0_pred))
 
+    # # start all with same directions
+    # v0_true = tf.ones_like(v0_true)
+    # v0_pred = tf.ones_like(v0_pred)
+
     # propagate
-    final_positions_true = tf_propagate(r0_true, v0_true, l_abs_true,
-                                        l_scat_true)
-    final_positions_pred = tf_propagate(r0_pred, v0_pred, l_abs_pred,
-                                        l_scat_pred)
+    time_traveled_true = tf_propagate(r0_true, v0_true, l_abs_true,
+                                        l_scat_true, settings.BOUNDARY, 'real')
+    time_traveled_pred = tf_propagate(r0_pred, v0_pred, l_abs_pred,
+                                        l_scat_pred, settings.BOUNDARY, 'fake')
 
-    # define hitlists
-    hits_true_biased = tf_count_hits(final_positions_true, tf_doms)
-    hits_pred_soft = tf_soft_count_hits(final_positions_pred, tf_doms)
-    hits_pred_hard = tf_count_hits(final_positions_pred, tf_doms)
-
-    # (reverse) bias correct true hits and take logs
-    corrector = tf.stop_gradient(
-        hits_pred_soft - hits_pred_hard)*tf.reduce_sum(hits_pred_hard) \
-        / tf.reduce_sum(hits_true_biased)
-
-    hits_true = tf.log(hits_true_biased + corrector + 1)
-    hits_pred = tf.log(hits_pred_soft + 1)
+    sum_time_traveled_true = tf.reduce_sum(time_traveled_true)
+    sum_time_traveled_pred = tf.reduce_sum(time_traveled_pred)
 
     # define loss
-    loss = tf.reduce_sum(tf.squared_difference(hits_true, hits_pred))
+    loss = tf.reduce_sum(tf.squared_difference(sum_time_traveled_true,
+                                                sum_time_traveled_pred))
 
     # initialize the optimizer
     optimizer = tf.train.AdamOptimizer(settings.LEARNING_RATE)
@@ -192,13 +200,16 @@ if __name__ == '__main__':
     logger.message("Starting...")
     for step in range(1, settings.MAX_STEPS + 1):
         # sample cascade position for this step
-        r_cascade = np.random.uniform(high=settings.LENGTH_X)
+        #r_cascade = np.random.uniform(high=settings.LENGTH_X)
+        r_cascade =0.
 
-        result = session.run([minimize, loss, l_abs_pred, l_scat_pred],
+        result = session.run([minimize, loss, l_abs_pred, l_scat_pred, 
+                              time_traveled_pred],
                              feed_dict={tf_r_cascade: r_cascade})
 
         # get updated parameters
-        logger.log(step, result[1:])
+        logger.log(step, result[1:-1])
+        #print('t:',result[-1])
 
         if step % settings.WRITE_INTERVAL == 0:
             logger.write()

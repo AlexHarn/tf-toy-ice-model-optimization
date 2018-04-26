@@ -42,16 +42,14 @@ def tf_propagate(r0, v0, l_abs, l_scat, max_z, tag):
 
         # maximally go to boundary
         d = tf.where(tf.abs(r + d*v) > max_z,
-                     d - (tf.abs(r + d*v) - max_z) + 1, 
+                     d - (tf.abs(r + d*v) - max_z) + 1,
                      d)
 
         # propagate
-        # r = tf.Print(r, [r],'[{}]r'.format(tag), summarize=5)
         r += d*v
         d_abs -= d
 
         # log distance traveled
-        # r = tf.Print(r, [t],'[{}]t'.format(tag), summarize=5)
         t += d
 
         # stop photons which have reached a minimal distance to either side:
@@ -63,7 +61,7 @@ def tf_propagate(r0, v0, l_abs, l_scat, max_z, tag):
 
         return [d_abs, r, v, t, i]
 
-    d_abs, r, v, t, i =  tf.while_loop(
+    d_abs, r, v, t, i = tf.while_loop(
         lambda d_abs, r, v, t, i: tf.less(0., tf.reduce_max(d_abs)),
         # lambda d_abs, r, v, t, i: tf.less(i, 4),
         lambda d_abs, r, v, t, i: body(d_abs, r, v, t, i),
@@ -161,22 +159,18 @@ if __name__ == '__main__':
     v0_pred = tf.where(v0_pred > 0, tf.ones_like(v0_pred),
                        -tf.ones_like(v0_pred))
 
-    # # start all with same directions
-    # v0_true = tf.ones_like(v0_true)
-    # v0_pred = tf.ones_like(v0_pred)
-
     # propagate
     time_traveled_true = tf_propagate(r0_true, v0_true, l_abs_true,
-                                        l_scat_true, settings.BOUNDARY, 'real')
+                                      l_scat_true, settings.BOUNDARY, 'real')
     time_traveled_pred = tf_propagate(r0_pred, v0_pred, l_abs_pred,
-                                        l_scat_pred, settings.BOUNDARY, 'fake')
+                                      l_scat_pred, settings.BOUNDARY, 'fake')
 
     sum_time_traveled_true = tf.reduce_sum(time_traveled_true)
     sum_time_traveled_pred = tf.reduce_sum(time_traveled_pred)
 
     # define loss
     loss = tf.reduce_sum(tf.squared_difference(sum_time_traveled_true,
-                                                sum_time_traveled_pred))
+                                               sum_time_traveled_pred))
 
     # initialize the optimizer
     optimizer = tf.train.AdamOptimizer(settings.LEARNING_RATE)
@@ -200,16 +194,14 @@ if __name__ == '__main__':
     logger.message("Starting...")
     for step in range(1, settings.MAX_STEPS + 1):
         # sample cascade position for this step
-        #r_cascade = np.random.uniform(high=settings.LENGTH_X)
-        r_cascade =0.
+        r_cascade = 0.
 
-        result = session.run([minimize, loss, l_abs_pred, l_scat_pred, 
+        result = session.run([minimize, loss, l_abs_pred, l_scat_pred,
                               time_traveled_pred],
                              feed_dict={tf_r_cascade: r_cascade})
 
         # get updated parameters
         logger.log(step, result[1:-1])
-        #print('t:',result[-1])
 
         if step % settings.WRITE_INTERVAL == 0:
             logger.write()

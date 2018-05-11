@@ -148,6 +148,29 @@ class Detector:
 
         return tf.stop_gradient(hitlist)
 
+    def tf_dom_hitmask(self, final_positions):
+        """
+        Calculates the hitmask for each DOM, which specifies which photons hit
+        the DOM.
+
+        Parameters
+        ----------
+        final_positions : TF tensor of shape (?, 3)
+            The final positions of the photons.
+
+        Returns
+        -------
+        Boolean tensor of shape (DOMs, ?). 1 where the photon at the same
+        position in final_positions hit the given DOM, 0 otherwise.
+        """
+        # TODO: change vectors to dimension [batch, dom, coordinate] get rid of
+        # expand and squeeze
+        final_positions_exp = tf.expand_dims(final_positions, axis=1)
+
+        # calculate distances of every photon to every DOM
+        ds = tf.norm(final_positions_exp - self.tf_doms, axis=2)
+        return ds <= self._dom_radius
+
     def tf_calc_arrival_times_loss(self, arrival_times_true,
                                    final_positions_true, arrival_times_pred,
                                    final_positions_pred):
@@ -165,6 +188,10 @@ class Detector:
             The arrival times of the learned model.
         final_positions_pred : TF tensor of shape (?, 3)
             The final positions of the learned model.
+
+        Returns
+        -------
+        The experimental loss.
         """
         # TODO: change vectors to dimension [batch, dom, coordinate] get rid of
         # expand and squeeze

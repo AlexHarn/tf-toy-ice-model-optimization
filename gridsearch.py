@@ -10,8 +10,10 @@ from logger import Logger
 import settings
 
 # --------------------------------- Settings ----------------------------------
-L_ABS = np.linspace(80, 120, 9)
-L_SCAT = np.linspace(20, 30, 9)
+# L_ABS = np.linspace(80, 120, 9)
+# L_SCAT = np.linspace(20, 30, 9)
+L_ABS = np.linspace(50, 150, 9)
+L_SCAT = np.linspace(12.5, 37.5, 9)
 
 
 # ------------------------- General Initialization ----------------------------
@@ -63,11 +65,11 @@ hits_true = tf.log(hits_true_biased + corrector + 1)
 hits_pred = tf.log(hits_pred_soft + 1)
 
 # define loss
-# loss = tf.reduce_sum(tf.squared_difference(hits_true, hits_pred))
-loss = detector.tf_calc_arrival_times_loss(model_true.arrival_times,
-                                           model_true.final_positions,
-                                           model_pred.arrival_times,
-                                           model_pred.final_positions)
+loss = tf.reduce_sum(tf.squared_difference(hits_true, hits_pred))
+loss += detector.tf_calc_arrival_times_loss(model_true.arrival_times,
+                                            model_true.final_positions,
+                                            model_pred.arrival_times,
+                                            model_pred.final_positions)
 
 # define variable and operations to track the average batch loss
 average_loss = tf.Variable(0., trainable=False)
@@ -80,7 +82,7 @@ if __name__ == '__main__':
     session.run(tf.global_variables_initializer())
 
     # initialize the logger
-    logger = Logger(logdir='./gridsearch/')
+    logger = Logger(logdir='./gridsearch/', overwrite=True)
     logger.register_variables(['loss', 'l_abs', 'l_scat'], print_all=True)
 
     # initialize grid array
@@ -90,7 +92,7 @@ if __name__ == '__main__':
     for i in range(len(L_ABS)):
         for j in range(len(L_SCAT)):
             # sample cascade positions for this step
-            r_cascades = [[500, 500, 250]
+            r_cascades = [[50, 50, 25]
                           for n in range(settings.CASCADES_PER_STEP)]
 
             # propagate in batches

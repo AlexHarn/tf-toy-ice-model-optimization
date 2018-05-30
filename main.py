@@ -46,12 +46,24 @@ if __name__ == '__main__':
         config = tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True))
     session = tf.Session(config=config)
 
+    # define hitlists
+    hits_true_biased = detector.tf_count_hits(model_true.final_positions)
+    hits_pred_soft = detector.tf_soft_count_hits(model_pred.final_positions)
+    hits_pred_hard = detector.tf_count_hits(model_pred.final_positions)
+
+    # (reverse) bias correct true hits and take logs
+    corrector = tf.stop_gradient(hits_pred_soft - hits_pred_hard) \
+        * tf.reduce_sum(hits_pred_hard)/tf.reduce_sum(hits_true_biased)
+
+    hits_true = tf.log(hits_true_biased + corrector + 1)
+    hits_pred = tf.log(hits_pred_soft + 1)
+
     # define loss
-    # chi-squared for average arrival times per DOM
-    loss = detector.tf_calc_arrival_times_loss(model_true.arrival_times,
-                                               model_true.final_positions,
-                                               model_pred.arrival_times,
-                                               model_pred.final_positions)
+    loss = tf.reduce_sum(tf.squared_difference(hits_true, hits_pred))
+    loss += detector.tf_calc_arrival_times_loss(model_true.arrival_times,
+                                                model_true.final_positions,
+                                                model_pred.arrival_times,
+                                                model_pred.final_positions)
 
     # create variable for learning rate
     tf_learning_rate = tf.Variable(settings.INITIAL_LEARNING_RATE,
@@ -90,24 +102,34 @@ if __name__ == '__main__':
     reset_gradients = [gradient.assign(tf.zeros_like(gradient)) for gradient in
                        accumulated_gradients]
 
-    # define the gradients
-    gradients = optimizer.compute_gradients(loss, trainable_variables)
+    # CAUTION
+    # set gradients manually
+    corrected_gradients = []
+    # l_abs
+    corrected_gradients.append(tf.reduce_mean(hits_true - hits_pred))
+    # l_scat
+    avg_t_true, avg_t_pred = \
+        detector.tf_calc_arrival_times(model_true.arrival_times,
+                                       model_true.final_positions,
+                                       model_pred.arrival_times,
+                                       model_pred.final_positions)
+
+    corrected_gradients.append(tf.reduce_mean(avg_t_true - avg_t_pred))
 
     # Note: Gradients is a list of tuples containing the gradient and the
     # corresponding variable so gradient[0] is the actual gradient. Also divide
     # the gradients by BATCHES_PER_STEP so the learning rate still refers to
     # steps not batches.
 
-    # define operation to propagate a batch and accumulating the gradients
     propagate_batch = [
-        accumulated_gradient.assign_add(gradient[0]/settings.BATCHES_PER_STEP)
-        for accumulated_gradient, gradient in zip(accumulated_gradients,
-                                                  gradients)]
+        accumulated_gradient.assign_add(gradient/settings.BATCHES_PER_STEP) for
+        accumulated_gradient, gradient in zip(accumulated_gradients,
+                                              corrected_gradients)]
 
     # define operation to apply the gradients
     apply_gradients = optimizer.apply_gradients([
-        (accumulated_gradient, gradient[1]) for accumulated_gradient, gradient
-        in zip(accumulated_gradients, gradients)])
+        (accumulated_gradient, tv) for accumulated_gradient, tv
+        in zip(accumulated_gradients, trainable_variables)])
 
     # define variable and operations to track the average batch loss
     average_loss = tf.Variable(0., trainable=False)

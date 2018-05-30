@@ -43,8 +43,10 @@ class Ice:
         # only train absorption for now without time information
         self._homogenous = True
         if self._trainable:
-            self.l_abs = tf.Variable(l_abs, dtype=settings.FLOAT_PRECISION)
-            self.l_scat = tf.constant(l_scat, dtype=settings.FLOAT_PRECISION)
+            self.l_abs = tf.Variable(l_abs, dtype=settings.FLOAT_PRECISION,
+                                     name='l_abs_pred')
+            self.l_scat = tf.Variable(l_scat, dtype=settings.FLOAT_PRECISION,
+                                      name='l_scat_pred')
         elif self._placeholders:
             self.l_abs = tf.placeholder(dtype=settings.FLOAT_PRECISION,
                                         shape=())

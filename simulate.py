@@ -69,12 +69,13 @@ if __name__ == '__main__':
         mean_arrival_times = []
         for i in range(len(detector.doms)):
             dom_arrival_times.append(result[0][result[1][:, i]])
-            plt.hist(dom_arrival_times[-1], bins=50, label=str(i))
-            plt.axvline(np.linalg.norm(detector.doms[i] - r_cascades[0]), 0, 1,
-                        c='k', lw=2)
-            plt.legend()
-            plt.show()
-            plt.clf()
+            mean_arrival_times.append(np.mean(dom_arrival_times[-1]))
+            # plt.hist(dom_arrival_times[-1], bins=50, label=str(i))
+            # plt.axvline(np.linalg.norm(detector.doms[i] - r_cascades[0]), 0, 1,
+                        # c='k', lw=2)
+            # plt.legend()
+            # plt.show()
+            # plt.clf()
 
         print(mean_arrival_times)
 

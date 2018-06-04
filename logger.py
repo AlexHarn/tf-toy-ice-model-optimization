@@ -122,11 +122,12 @@ class Logger:
             self._session_buffer = ""
 
             # write all variables to hdf5 store
-            store = pd.HDFStore(self._logdir+'variables.hdf5')
+            if len(self._variables) > 0:
+                store = pd.HDFStore(self._logdir+'variables.hdf5')
 
-            store.append('Variables', self._data_buffer, format='t',
-                         data_columns=True)
-            store.close()
+                store.append('Variables', self._data_buffer, format='t',
+                             data_columns=True)
+                store.close()
         except Exception:
             print("Logger could not write to file!")
             pass

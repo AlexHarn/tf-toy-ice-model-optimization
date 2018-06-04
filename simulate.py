@@ -2,8 +2,7 @@ from __future__ import division
 import tensorflow as tf
 import numpy as np
 from tqdm import trange
-
-import matplotlib.pyplot as plt
+import os
 
 from ice import Ice
 from detector import Detector
@@ -12,6 +11,9 @@ from logger import Logger
 import settings
 
 # ------------------------------ Initialization -------------------------------
+# select device
+os.environ["CUDA_VISIBLE_DEVICES"] = '1'
+
 # set random seeds
 if settings.RANDOM_SEED:
     tf.set_random_seed(settings.RANDOM_SEED)
@@ -52,34 +54,25 @@ if __name__ == '__main__':
 
     # --------------------------------- Run -----------------------------------
     # initialize the logger
-    logger = Logger(logdir='./log/', overwrite=True)
-    logger.register_variables(['average_arrival_time'], print_all=True)
+    logger = Logger(logdir='/net/nfshome/home/aharnisch/hit_sim/1/')
+    logger.register_variables(['cascade_x', 'cascade_y', 'cascade_z'] +
+                              ['dom_{}_hits'.format(i) for i in range(27)],
+                              print_variables=['cascade_x', 'cascade_y',
+                                               'cascade_z'])
 
     logger.message("Starting...")
     for step in range(1, settings.MAX_STEPS + 1):
         # sample cascade positions for this step
-        r_cascades = [[50, 50, 25]]
+        r_cascade = [np.random.uniform(high=settings.LENGTH_X),
+                     np.random.uniform(high=settings.LENGTH_Y),
+                     50.]
 
         # propagate in batches
+        data = np.zeros(27)
         for i in trange(settings.BATCHES_PER_STEP, leave=False):
-            result = session.run([model.arrival_times, hitmask, hitlist],
-                                 feed_dict={model.r_cascades: r_cascades})
-
-        dom_arrival_times = []
-        mean_arrival_times = []
-        for i in range(len(detector.doms)):
-            dom_arrival_times.append(result[0][result[1][:, i]])
-            mean_arrival_times.append(np.mean(dom_arrival_times[-1]))
-            # plt.hist(dom_arrival_times[-1], bins=50, label=str(i))
-            # plt.axvline(np.linalg.norm(detector.doms[i] - r_cascades[0]), 0, 1,
-                        # c='k', lw=2)
-            # plt.legend()
-            # plt.show()
-            # plt.clf()
-
-        print(mean_arrival_times)
-
-        exit()
+            data += session.run(hitlist, feed_dict={model.r_cascades:
+                                                    [r_cascade]})
+        logger.log(step, r_cascade + data.tolist())
 
         if step % settings.WRITE_INTERVAL == 0:
             logger.write()

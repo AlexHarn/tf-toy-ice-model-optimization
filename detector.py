@@ -171,129 +171,33 @@ class Detector:
         ds = tf.norm(final_positions_exp - self.tf_doms, axis=2)
         return ds <= self._dom_radius
 
-    def tf_calc_arrival_times_loss(self, arrival_times_true,
-                                   final_positions_true, arrival_times_pred,
-                                   final_positions_pred):
+    def tf_average_arrival_times(self, arrival_times, final_positions):
         """
-        Calculates a experimental loss based on arrival times: Chi**2 of the
-        average arrival time per DOM.
+        Calculates the arrival photon arrival time for each DOM.
 
         Parameters
         ----------
-        arrival_times_true : TF tensor of shape (?)
-            The arrival times of the "true" model.
-        final_positions_true : TF tensor of shape (?, 3)
-            The final positions of the "true" model.
-        arrival_times_pred : TF tensor of shape (?)
-            The arrival times of the learned model.
-        final_positions_pred : TF tensor of shape (?, 3)
-            The final positions of the learned model.
+        arrival_times : TF tensor of shape (?)
+            The arrival time of each photon.
+        final_positions : TF tensor of shape (?, 3)
+            The final positions of the photons.
 
         Returns
         -------
-        The experimental loss.
+        Tensor of shape (DOms) where each entry is the average photon arrival
+        time for this DOM. -1 for DOMs which have not been hit.
         """
         # TODO: change vectors to dimension [batch, dom, coordinate] get rid of
         # expand and squeeze
-        arrival_times_exp_true = tf.expand_dims(arrival_times_true, axis=1)
-        final_positions_exp_true = tf.expand_dims(final_positions_true, axis=1)
-        arrival_times_exp_pred = tf.expand_dims(arrival_times_pred, axis=1)
-        final_positions_exp_pred = tf.expand_dims(final_positions_pred, axis=1)
+        arrival_times_exp = tf.expand_dims(arrival_times, axis=1)
 
-        # calculate distances of every photon to every DOM
-        ds_true = tf.stop_gradient(tf.norm(final_positions_exp_true -
-                                           self.tf_doms, axis=2))
-        hitlist_true = tf.reduce_sum(tf.cast(ds_true <= self._dom_radius,
-                                             dtype=settings.FLOAT_PRECISION),
-                                     axis=0, keep_dims=True)
+        hitmask = tf.cast(self.tf_dom_hitmask(final_positions),
+                          dtype=settings.FLOAT_PRECISION)
+        hitlist = tf.reduce_sum(hitmask, axis=0, keep_dims=True)
 
-        ds_pred = tf.stop_gradient(tf.norm(final_positions_exp_pred -
-                                           self.tf_doms, axis=2))
+        # calculate average arrival times per DOM if there are any hits
+        avg_t = tf.reduce_sum(hitmask*arrival_times_exp, axis=0)/hitlist
+        avg_t = tf.where(hitlist > 0., avg_t, -tf.ones_like(avg_t))
 
-        hitlist_pred = tf.reduce_sum(tf.cast(ds_pred <= self._dom_radius,
-                                             dtype=settings.FLOAT_PRECISION),
-                                     axis=0, keep_dims=True)
-
-        hit_mask = tf.logical_and(hitlist_true > 0, hitlist_pred > 0)
-
-        hitlist_true = tf.where(hit_mask, hitlist_true,
-                                tf.ones_like(hitlist_true))
-        hitlist_pred = tf.where(hit_mask, hitlist_pred,
-                                tf.ones_like(hitlist_pred))
-        hit_mask = tf.cast(hit_mask, settings.FLOAT_PRECISION)
-
-        hitmask_true = tf.cast(ds_true <= self._dom_radius,
-                               dtype=settings.FLOAT_PRECISION)
-
-        hitmask_pred = tf.cast(ds_pred <= self._dom_radius,
-                               dtype=settings.FLOAT_PRECISION)
-
-        # calculate avg arrival times per DOM
-        avg_t_true = tf.reduce_sum(
-            hit_mask*hitmask_true*arrival_times_exp_true, axis=0)/hitlist_true
-
-        avg_t_pred = tf.reduce_sum(
-            hit_mask*hitmask_pred*arrival_times_exp_pred, axis=0)/hitlist_pred
-
-        # define hitlists
-        hits_true_biased = self.tf_count_hits(final_positions_true)
-        hits_pred_soft = self.tf_soft_count_hits(final_positions_pred)
-        hits_pred_hard = self.tf_count_hits(final_positions_pred)
-
-        # (reverse) bias correct true hits and take logs
-        corrector = tf.stop_gradient(hits_pred_soft - hits_pred_hard) \
-            * tf.reduce_sum(hits_pred_hard)/tf.reduce_sum(hits_true_biased)
-
-        hits_true = tf.log(hits_true_biased + corrector + 1)
-        hits_pred = tf.log(hits_pred_soft + 1)
-
-        dom_loss = tf.squared_difference(hits_true, hits_pred) \
-            * tf.squared_difference(avg_t_pred, avg_t_true)
-
-        return tf.reduce_sum(dom_loss)
-
-    def tf_calc_arrival_times(self, arrival_times_true, final_positions_true,
-                              arrival_times_pred, final_positions_pred):
-        # TODO: change vectors to dimension [batch, dom, coordinate] get rid of
-        # expand and squeeze
-        arrival_times_exp_true = tf.expand_dims(arrival_times_true, axis=1)
-        final_positions_exp_true = tf.expand_dims(final_positions_true, axis=1)
-        arrival_times_exp_pred = tf.expand_dims(arrival_times_pred, axis=1)
-        final_positions_exp_pred = tf.expand_dims(final_positions_pred, axis=1)
-
-        # calculate distances of every photon to every DOM
-        ds_true = tf.stop_gradient(tf.norm(final_positions_exp_true -
-                                           self.tf_doms, axis=2))
-        hitlist_true = tf.reduce_sum(tf.cast(ds_true <= self._dom_radius,
-                                             dtype=settings.FLOAT_PRECISION),
-                                     axis=0, keep_dims=True)
-
-        ds_pred = tf.stop_gradient(tf.norm(final_positions_exp_pred -
-                                           self.tf_doms, axis=2))
-
-        hitlist_pred = tf.reduce_sum(tf.cast(ds_pred <= self._dom_radius,
-                                             dtype=settings.FLOAT_PRECISION),
-                                     axis=0, keep_dims=True)
-
-        hit_mask = tf.logical_and(hitlist_true > 0, hitlist_pred > 0)
-
-        hitlist_true = tf.where(hit_mask, hitlist_true,
-                                tf.ones_like(hitlist_true))
-        hitlist_pred = tf.where(hit_mask, hitlist_pred,
-                                tf.ones_like(hitlist_pred))
-        hit_mask = tf.cast(hit_mask, settings.FLOAT_PRECISION)
-
-        hitmask_true = tf.cast(ds_true <= self._dom_radius,
-                               dtype=settings.FLOAT_PRECISION)
-
-        hitmask_pred = tf.cast(ds_pred <= self._dom_radius,
-                               dtype=settings.FLOAT_PRECISION)
-
-        # calculate avg arrival times per DOM
-        avg_t_true = tf.reduce_sum(
-            hit_mask*hitmask_true*arrival_times_exp_true, axis=0)/hitlist_true
-
-        avg_t_pred = tf.reduce_sum(
-            hit_mask*hitmask_pred*arrival_times_exp_pred, axis=0)/hitlist_pred
-
-        return [avg_t_true, avg_t_pred]
+        # return average arrival times per DOM
+        return avg_t

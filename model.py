@@ -110,7 +110,7 @@ class Model:
         """
         Propagates the photons until they are absorbed or hit a DOM.
         """
-        def body(d_abs, r, v, t):
+        def body(d_abs, r, v, t, t_layer_0, t_layer_1):
             # sample distances until next scattering
             d_scat = self._ice.tf_sample_scatter(r)
 
@@ -129,7 +129,14 @@ class Model:
             r += tf.expand_dims(d*rel_d_til_hit, axis=-1)*v
 
             # log traveltimes (or distance, just differ by constant speed)
-            t += d*rel_d_til_hit
+            t_step = d*rel_d_til_hit
+            t += t_step
+
+            # log layer traveltime (layers are not correctly implemented yet)
+            t_layer_0 += tf.where(r[:, 2] < 50, t_step,
+                                  tf.zeros_like(t_layer_0))
+            t_layer_1 += tf.where(r[:, 2] >= 50, t_step,
+                                  tf.zeros_like(t_layer_1))
 
             # stop propagating if the photon is outside the cutoff radius
             if settings.CUTOFF_RADIUS:
@@ -145,15 +152,25 @@ class Model:
             # scatter photons which have not been stopped yet
             v = tf.where(d_abs > 0., self.tf_scatter(v), v)
 
-            return [d_abs, r, v, t]
+            return [d_abs, r, v, t, t_layer_0, t_layer_1]
 
         results = tf.while_loop(
-            lambda d_abs, r, v, t: tf.less(0., tf.reduce_max(d_abs)),
-            lambda d_abs, r, v, t: body(d_abs, r, v, t),
-            [self._ice.tf_sample_absorption(self._r0), self._r0, self._v0,
-             tf.zeros([tf.shape(self._r0)[0]],
-                      dtype=settings.FLOAT_PRECISION)],
+            lambda d_abs, r, v, t, t_layer_0, t_layer_1:
+                tf.less(0., tf.reduce_max(d_abs)),
+            lambda d_abs, r, v, t, t_layer_0, t_layer_1:
+                body(d_abs, r, v, t, t_layer_0, t_layer_1),
+            [self._ice.tf_sample_absorption(self._r0),
+                self._r0,
+                self._v0,
+                tf.zeros([tf.shape(self._r0)[0]],
+                         dtype=settings.FLOAT_PRECISION),
+                tf.zeros(tf.shape(self._r0)[0],
+                         dtype=settings.FLOAT_PRECISION),
+                tf.zeros(tf.shape(self._r0)[0],
+                         dtype=settings.FLOAT_PRECISION)],
             parallel_iterations=1)
 
         self.final_positions = results[1]
         self.arrival_times = results[3]
+        self.t_layer_0 = results[4]
+        self.t_layer_1 = results[5]

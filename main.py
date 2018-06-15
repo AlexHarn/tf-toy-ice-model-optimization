@@ -88,9 +88,14 @@ if __name__ == '__main__':
     gradients = []
     variables = []
 
+    t_layers = [tf.reduce_sum(model_pred.t_layer_0),
+                tf.reduce_sum(model_pred.t_layer_1)]
+    layer_weights = t_layers/(t_layers[0] + t_layers[1])
+
     for i in range(len(settings.L_ABS_TRUE)):
         # l_abs
-        gradients.append(tf.reduce_mean(hits_true - hits_pred))
+        gradients.append(layer_weights[i]*tf.reduce_mean(hits_true -
+                                                         hits_pred))
         variables.append(ice_pred.l_abs[i])
 
         # l_scat
@@ -107,7 +112,8 @@ if __name__ == '__main__':
         avg_t_pred = tf.where(avg_t_true < 0., -tf.ones_like(avg_t_pred),
                               avg_t_pred)
 
-        gradients.append(tf.reduce_mean(avg_t_true - avg_t_pred))
+        gradients.append(layer_weights[i]*tf.reduce_mean(avg_t_true -
+                                                         avg_t_pred))
         variables.append(ice_pred.l_scat[i])
 
     # define variables to save the gradients in each batch
@@ -137,7 +143,7 @@ if __name__ == '__main__':
     abs_list = ['l_abs_pred_{}'.format(i) for i in
                 range(len(settings.L_ABS_TRUE))]
     scat_list = ['l_scat_pred_{}'.format(i) for i in
-                range(len(settings.L_ABS_TRUE))]
+                 range(len(settings.L_ABS_TRUE))]
     logger.register_variables(abs_list + scat_list, print_all=True)
 
     logger.message("Starting...")

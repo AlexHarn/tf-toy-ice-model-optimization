@@ -15,8 +15,8 @@ NX_STRINGS = 3
 NY_STRINGS = 3
 
 # ----------------------------------- Ice -------------------------------------
-L_ABS_TRUE = [95, 105]
-L_SCAT_TRUE = [22, 27]
+L_ABS_TRUE = [80, 115]
+L_SCAT_TRUE = [30, 17]
 L_ABS_START = [100, 100]
 L_SCAT_START = [25, 25]
 
@@ -28,7 +28,7 @@ CUTOFF_RADIUS = 1.1
 
 # --------------------------------- Training ----------------------------------
 MAX_STEPS = 100000000
-BATCHES_PER_STEP = 10
+BATCHES_PER_STEP = 20
 BATCH_SIZE = 50000
 # each cascades contains BATCH_SIZE*BATCHES_PER_STEP/CASCADES_PER_STEP photons
 CASCADES_PER_STEP = 1

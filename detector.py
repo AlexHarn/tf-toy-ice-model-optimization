@@ -44,6 +44,7 @@ class Detector:
         self._l_y = l_y
         self._l_z = l_z
 
+
     # -------------------------- TF Graph Building ----------------------------
     def tf_check_for_hits(self, r, d, v):
         """
@@ -147,3 +148,81 @@ class Detector:
                                 axis=0)
 
         return tf.stop_gradient(hitlist)
+
+    def tf_expected_hits(self, final_positions, traveled_distances, ice):
+        """
+        Calculates the expected hits for each DOM. Only homogeneous right now.
+
+        Parameters
+        ----------
+        final_positions : TF tensor, shape(?, 3)
+            Final photon positions.
+        traveled_distances : TF tensor, shape(?)
+            The traveled distance of each photon.
+        ice : Ice class object
+            The ice which specifies absorption.
+
+        Returns
+        -------
+        The expected hits for each DOM. TF Tensor of shape (DOMS,).
+        """
+        # TODO: change vectors to dimension [batch, dom, coordinate] get rid of
+        # expand and squeeze
+        final_positions_exp = tf.expand_dims(final_positions, axis=1)
+
+        # calculate distances of every photon to every DOM
+        ds = tf.norm(final_positions_exp - self.tf_doms, axis=2)
+        hit_mask = ds <= self._dom_radius
+
+        # calculate hit probability p for each photon, which is the 1 - p_abs
+        # where p_abs is the probability for the photon to be absorbed at a
+        # distance smaller than the traveled distance before it hit the DOM
+        p = tf.exp(-1./ice.l_abs*traveled_distances)
+        p_exp = tf.tile(tf.expand_dims(p, axis=1), [1, 27])
+
+        hitlist = tf.reduce_sum(tf.where(hit_mask,
+                                         p_exp,
+                                         tf.zeros_like(p_exp)),
+                                axis=0)
+        return hitlist
+
+    def tf_sample_hits(self, final_positions, traveled_distances, ice):
+        """
+        Calculates the probability for each photon to reach the DOM and than
+        samples a uniform number to decide whether or not to count the photon.
+
+        Parameters
+        ----------
+        final_positions : TF tensor, shape(?, 3)
+            Final photon positions.
+        traveled_distances : TF tensor, shape(?)
+            The traveled distance of each photon.
+        ice : Ice class object
+            The ice which specifies absorption.
+
+        Returns
+        -------
+        The sampled hits for each DOM. TF Tensor of shape (DOMS,).
+        """
+        # TODO: change vectors to dimension [batch, dom, coordinate] get rid of
+        # expand and squeeze
+        final_positions_exp = tf.expand_dims(final_positions, axis=1)
+
+        # calculate distances of every photon to every DOM
+        ds = tf.norm(final_positions_exp - self.tf_doms, axis=2)
+        hit_mask = ds <= self._dom_radius
+
+        # calculate hit probability p for each photon, which is the 1 - p_abs
+        # where p_abs is the probability for the photon to be absorbed at a
+        # distance smaller than the traveled distance before it hit the DOM
+        p = tf.exp(-1./ice.l_abs*traveled_distances)
+        z = tf.distributions.Uniform().sample(settings.BATCH_SIZE)
+        hits = tf.where(z < p, tf.ones_like(p), tf.zeros_like(p))
+
+        hits_exp = tf.tile(tf.expand_dims(hits, axis=1), [1, 27])
+
+        hitlist = tf.reduce_sum(tf.where(hit_mask,
+                                         hits_exp,
+                                         tf.zeros_like(hits_exp)),
+                                axis=0)
+        return hitlist

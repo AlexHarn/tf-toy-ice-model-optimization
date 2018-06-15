@@ -40,69 +40,28 @@ class Ice:
         l_scat : float
             Scattering length in meters.
         """
-        # only train absorption for now without time information
+        # only train absorption for now
         self._homogenous = True
         if self._trainable:
             self.l_abs = tf.Variable(l_abs, dtype=settings.FLOAT_PRECISION)
-            self.l_scat = tf.constant(l_scat, dtype=settings.FLOAT_PRECISION)
         elif self._placeholders:
             self.l_abs = tf.placeholder(dtype=settings.FLOAT_PRECISION,
                                         shape=())
-            self.l_scat = tf.placeholder(dtype=settings.FLOAT_PRECISION,
-                                         shape=())
         else:
             self.l_abs = tf.constant(l_abs, dtype=settings.FLOAT_PRECISION)
-            self.l_scat = tf.constant(l_scat, dtype=settings.FLOAT_PRECISION)
+
+        self.l_scat = tf.constant(l_scat, dtype=settings.FLOAT_PRECISION)
 
         self._abs_pdf = tf.distributions.Exponential(1/self.l_abs)
         self._scat_pdf = tf.distributions.Exponential(1/self.l_scat)
 
     # -------------------------- TF Graph Building ----------------------------
-    def tf_get_coefficients(self, r):
-        """
-        Builds the subgraph which grabs the ice coefficients depending on the
-        given photon position.
-
-        Parameters
-        ----------
-        r : TF tensor, 3d vector
-            Photon location.
-
-        Returns
-        -------
-        The absorption and scattering coefficients at the given position r
-        inside of the computational graph.
-        """
-        # TODO: Implement properly for layers
-        if self._homogenous:
-            return (self.l_abs, self.l_scat)
-
-    def tf_sample_absorption(self, r):
-        """
-        Samples absorption lengths.
-
-        Parameters
-        ----------
-        r : TF tensor, shape(?, 3)
-            Photon locations.
-
-        Returns
-        -------
-        Tensor for the sampled absorption lengths of shape(?).
-        """
-        return self._abs_pdf.sample(tf.shape(r)[0])
-
-    def tf_sample_scatter(self, r):
+    def tf_sample_scatter(self):
         """
         Samples scattering lengths.
-
-        Parameters
-        ----------
-        r : TF tensor, shape(?, 3)
-            Photon locations.
 
         Returns
         -------
         Tensor for the sampled scattering lengths of shape(?).
         """
-        return self._scat_pdf.sample(tf.shape(r)[0])
+        return self._scat_pdf.sample(settings.BATCH_SIZE)

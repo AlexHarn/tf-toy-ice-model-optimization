@@ -18,9 +18,12 @@ NY_STRINGS = 3
 L_ABS_TRUE = 100
 L_SCAT_TRUE = 25
 L_ABS_START = 80
-L_SCAT_START = 25
+# L_SCAT_START = 25
 
 # ------------------------------- Propagation ---------------------------------
+# Maximum travel distance to propagete before cutoff, must be set
+CUTOFF_DISTANCE = 1000.
+
 # Distance of the detector center at which to stop propagation to spare
 # computation time in units of norm([LENGTH_X, LENGTH_Y, LENGTH_Z])/2.
 # Set to False for no cutoff
@@ -36,7 +39,7 @@ CASCADES_PER_STEP = 50
 # -------------------------------- Optimizer ----------------------------------
 INITIAL_LEARNING_RATE = 1
 # True or False to activate/deactivate learning rate decay
-LEARNING_DECAY = True
+LEARNING_DECAY = False
 # Decay modes: Linear or Exponential
 LEARNING_DECAY_MODE = 'Exponential'
 # decrease the INITIAL_LEARNING_RATE every LEARNING_STEPS steps by

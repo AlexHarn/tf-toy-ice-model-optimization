@@ -110,50 +110,72 @@ class Model:
         """
         Propagates the photons until they are absorbed or hit a DOM.
         """
-        def body(d_abs, r, v, t):
+        def body(stopped, r, v, t):
+            """
+            Body of the propagation loop.
+
+            Parameters
+            ----------
+            stopped : TF tensor, shape(?)
+                1 for photons which hit a DOM or reached the cutoff, 0 for
+                photons which are still going
+            r : TF tensor, shape(?, 3)
+                photon positions
+            v : TF tensor, shape(?, 3)
+                normalized photon direcitons
+            t : TF tensor, shape(?)
+                Travel time/distance of each photon
+
+            Returns
+            -------
+            (stopped, r, v, t) for next iteration.
+            """
             # sample distances until next scattering
-            d_scat = self._ice.tf_sample_scatter(r)
-
-            # make sure we stop the propagation after d_abs
-            d_abs = tf.where(d_abs > 0., d_abs, tf.zeros_like(d_abs))
-
-            # if the distance is longer than the remaining distance until
-            # absorption only propagate to absorption
-            d = tf.where(d_scat < d_abs, d_scat, d_abs)
+            d_scat = self._ice.tf_sample_scatter()
 
             # check for hits and stop inside the DOM if hit
-            rel_d_til_hit = self._detector.tf_check_for_hits(r, d, v)
-            d_abs = tf.where(rel_d_til_hit < 1., tf.zeros_like(d), d_abs - d)
+            rel_d_til_hit = tf.where(stopped < 0.5,
+                                     self._detector.tf_check_for_hits(r,
+                                                                      d_scat,
+                                                                      v),
+                                     tf.zeros_like(d_scat))
+            stopped = tf.where(rel_d_til_hit < 1., tf.ones_like(stopped),
+                               tf.zeros_like(stopped))
 
             # propagate
-            r += tf.expand_dims(d*rel_d_til_hit, axis=-1)*v
+            r += tf.expand_dims(d_scat*rel_d_til_hit, axis=-1)*v
 
             # log traveltimes (or distance, just differ by constant speed)
-            t += d*rel_d_til_hit
+            t += d_scat*rel_d_til_hit
 
             # stop propagating if the photon is outside the cutoff radius
             if settings.CUTOFF_RADIUS:
-                d_abs = tf.where(tf.norm(r - np.array([self._detector._l_x/2,
-                                                       self._detector._l_y/2,
-                                                       self._detector._l_z/2]),
-                                         axis=-1) < settings.CUTOFF_RADIUS
-                                 * np.linalg.norm([self._detector._l_x,
-                                                   self._detector._l_y,
-                                                   self._detector._l_z])/2,
-                                 d_abs, tf.zeros_like(d_abs))
+                stopped = \
+                    tf.where(tf.norm(r - np.array([self._detector._l_x/2,
+                                                   self._detector._l_y/2,
+                                                   self._detector._l_z/2]),
+                                     axis=-1) < settings.CUTOFF_RADIUS *
+                             np.linalg.norm([self._detector._l_x,
+                                             self._detector._l_y,
+                                             self._detector._l_z])/2, stopped,
+                             tf.ones_like(stopped))
+
+            # stop propagating if the photon reached the cutoff travel distance
+            stopped = tf.where(t < settings.CUTOFF_DISTANCE, stopped,
+                               tf.ones_like(stopped))
 
             # scatter photons which have not been stopped yet
-            v = tf.where(d_abs > 0., self.tf_scatter(v), v)
+            v = tf.where(stopped < 0.5, self.tf_scatter(v), v)
 
-            return [d_abs, r, v, t]
+            return [stopped, r, v, t]
 
         results = tf.while_loop(
-            lambda d_abs, r, v, t: tf.less(0., tf.reduce_max(d_abs)),
-            lambda d_abs, r, v, t: body(d_abs, r, v, t),
-            [self._ice.tf_sample_absorption(self._r0), self._r0, self._v0,
+            lambda stopped, r, v, t: tf.greater(0.5, tf.reduce_min(stopped)),
+            lambda stopped, r, v, t: body(stopped, r, v, t),
+            [tf.zeros(settings.BATCH_SIZE), self._r0, self._v0,
              tf.zeros([tf.shape(self._r0)[0]],
                       dtype=settings.FLOAT_PRECISION)],
             parallel_iterations=1)
 
         self.final_positions = results[1]
-        self.arrival_times = results[3]
+        self.traveled_distances = results[3]

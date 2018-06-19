@@ -17,12 +17,10 @@ if settings.RANDOM_SEED:
 
 # initialize the ice
 ice_true = Ice()
-ice_true.homogeneous_init(l_abs=settings.L_ABS_TRUE,
-                          l_scat=settings.L_SCAT_TRUE)
+ice_true.init(l_abs=settings.L_ABS_TRUE, l_scat=settings.L_SCAT_TRUE)
 
 ice_pred = Ice(trainable=True)
-ice_pred.homogeneous_init(l_abs=settings.L_ABS_START,
-                          l_scat=settings.L_SCAT_TRUE)
+ice_pred.init(l_abs=settings.L_ABS_START, l_scat=settings.L_SCAT_TRUE)
 
 # initialize the detector
 detector = Detector(dom_radius=settings.DOM_RADIUS,
@@ -38,17 +36,16 @@ model_true = Model(ice_true, detector)
 model_pred = Model(ice_pred, detector)
 
 # define hitlists
-hits_true = detector.tf_sample_hits(model_true.final_positions,
-                                    model_true.traveled_distances, ice_true)
+hits_true = detector.tf_expected_hits(model_true.final_positions,
+                                      model_true.traveled_layer_distance,
+                                      ice_true)
 hits_pred = detector.tf_expected_hits(model_pred.final_positions,
-                                      model_pred.traveled_distances, ice_pred)
-
-# take logs for loss
-log_hits_true = tf.log(tf.ones_like(hits_true) + hits_true)
-log_hits_pred = tf.log(tf.ones_like(hits_pred) + hits_pred)
+                                      model_pred.traveled_layer_distance,
+                                      ice_pred)
 
 # define loss
-loss = tf.reduce_sum(tf.squared_difference(log_hits_true, log_hits_pred))
+loss = tf.reduce_sum(tf.squared_difference(tf.log(hits_true + 1),
+                                           tf.log(hits_pred + 1)))
 
 # crate variable for learning rate
 tf_learning_rate = tf.Variable(settings.INITIAL_LEARNING_RATE,
@@ -124,13 +121,16 @@ if __name__ == '__main__':
     # --------------------------------- Run -----------------------------------
     # initialize the logger
     logger = Logger(logdir='./log/', overwrite=True)
-    logger.register_variables(['loss', 'l_abs_pred', 'l_scat_pred'],
+    logger.register_variables(['loss', *['l_abs_pred_{}'.format(i) for i in
+                                         range(len(settings.L_ABS_TRUE))]],
                               print_all=True)
 
     logger.message("Starting...")
     for step in range(1, settings.MAX_STEPS + 1):
         # sample cascade positions for this step
-        r_cascades = [[50, 50, 25]
+        r_cascades = [[np.random.uniform(high=100),
+                       np.random.uniform(high=100),
+                       np.random.uniform(high=100)]
                       for i in range(settings.CASCADES_PER_STEP)]
 
         # propagate in batches
@@ -143,8 +143,8 @@ if __name__ == '__main__':
         session.run(apply_gradients)
 
         # get updated parameters
-        result = session.run([average_loss, ice_pred.l_abs, ice_pred.l_scat])
-        logger.log(step, result)
+        result = session.run([average_loss, ice_pred.l_abs])
+        logger.log(step, [result[0], *result[1]])
 
         # reset variables for next step
         session.run([reset_gradients, reset_loss])

@@ -40,9 +40,9 @@ class Model:
     def tf_init_cascades(self):
         """
         Builds the subgraph to initialize cascades at positions
-        self.r_cascades.  All photons start at exactly these initial positions.
+        self.r_cascades. All photons start at exactly these initial positions.
         The initial directions are sampled uniformly. For now all cascades
-        contain the same number of photons n_photons/shape(self.r_cascades)
+        contain the same number of photons n_photons/shape(self.r_cascades).
         """
         self._r0 = tf.tile(
             self.r_cascades,
@@ -87,11 +87,11 @@ class Model:
         Parameters
         ----------
         v : TF tensor, shape(?, 3)
-            Direction vectors of the photons which are being scattered
+            Direction vectors of the photons which are being scattered.
 
         Returns
         -------
-        The scattered direction tensor of shape(?, 3)
+        The scattered direction tensor of shape(?, 3).
         """
         # sample cos(theta)
         cosTs = 2*self._uni_pdf.sample(tf.shape(v)[0])**(1/19) - 1
@@ -110,7 +110,7 @@ class Model:
         """
         Propagates the photons until they are absorbed or hit a DOM.
         """
-        def body(stopped, r, v, t):
+        def body(stopped, r, v, t, d_layer):
             """
             Body of the propagation loop.
 
@@ -118,13 +118,15 @@ class Model:
             ----------
             stopped : TF tensor, shape(?)
                 1 for photons which hit a DOM or reached the cutoff, 0 for
-                photons which are still going
+                photons which are still going.
             r : TF tensor, shape(?, 3)
-                photon positions
+                photon positions.
             v : TF tensor, shape(?, 3)
-                normalized photon direcitons
+                normalized photon direcitons.
             t : TF tensor, shape(?)
-                Travel time/distance of each photon
+                Travel time/distance of each photon.
+            d_layer : TF tensor, shape(?, N_layer)
+                Traveled distance of each photon in each layer.
 
             Returns
             -------
@@ -139,14 +141,22 @@ class Model:
                                                                       d_scat,
                                                                       v),
                                      tf.zeros_like(d_scat))
-            stopped = tf.where(rel_d_til_hit < 1., tf.ones_like(stopped),
-                               tf.zeros_like(stopped))
 
             # propagate
-            r += tf.expand_dims(d_scat*rel_d_til_hit, axis=-1)*v
+            r_next = r + tf.expand_dims(d_scat*rel_d_til_hit, axis=-1)*v
 
             # log traveltimes (or distance, just differ by constant speed)
-            t += d_scat*rel_d_til_hit
+            d = d_scat*rel_d_til_hit
+            t += d
+            d_layer += tf.where(stopped < 0.5,
+                                self._ice.tf_get_layer_distance(r, r_next, v,
+                                                                d),
+                                tf.zeros_like(d_layer))
+
+            r = r_next
+
+            stopped = tf.where(rel_d_til_hit < 1., tf.ones_like(stopped),
+                               tf.zeros_like(stopped))
 
             # stop propagating if the photon is outside the cutoff radius
             if settings.CUTOFF_RADIUS:
@@ -167,15 +177,20 @@ class Model:
             # scatter photons which have not been stopped yet
             v = tf.where(stopped < 0.5, self.tf_scatter(v), v)
 
-            return [stopped, r, v, t]
+            return [stopped, r, v, t, d_layer]
 
         results = tf.while_loop(
-            lambda stopped, r, v, t: tf.greater(0.5, tf.reduce_min(stopped)),
-            lambda stopped, r, v, t: body(stopped, r, v, t),
-            [tf.zeros(settings.BATCH_SIZE), self._r0, self._v0,
-             tf.zeros([tf.shape(self._r0)[0]],
-                      dtype=settings.FLOAT_PRECISION)],
+            lambda stopped, r, v, t, d_layer:
+                tf.greater(0.5, tf.reduce_min(stopped)),
+            lambda stopped, r, v, t, d_layer:
+                body(stopped, r, v, t, d_layer),
+                [tf.zeros(settings.BATCH_SIZE), self._r0, self._v0,
+                 tf.zeros([tf.shape(self._r0)[0]],
+                          dtype=settings.FLOAT_PRECISION),
+                 tf.zeros([settings.BATCH_SIZE, len(settings.L_ABS_START)],
+                          dtype=settings.FLOAT_PRECISION)],
             parallel_iterations=1)
 
         self.final_positions = results[1]
         self.traveled_distances = results[3]
+        self.traveled_layer_distance = results[4]

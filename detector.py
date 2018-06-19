@@ -44,7 +44,6 @@ class Detector:
         self._l_y = l_y
         self._l_z = l_z
 
-
     # -------------------------- TF Graph Building ----------------------------
     def tf_check_for_hits(self, r, d, v):
         """
@@ -177,8 +176,14 @@ class Detector:
         # calculate hit probability p for each photon, which is the 1 - p_abs
         # where p_abs is the probability for the photon to be absorbed at a
         # distance smaller than the traveled distance before it hit the DOM
-        p = tf.exp(-1./ice.l_abs*traveled_distances)
-        p_exp = tf.tile(tf.expand_dims(p, axis=1), [1, 27])
+        p = tf.exp(-tf.reduce_sum(
+            1./tf.expand_dims(ice.l_abs, 0)*traveled_distances,
+            axis=1))
+        p_exp = tf.tile(tf.expand_dims(p, axis=1),
+                        [1,
+                         settings.NX_STRINGS
+                         * settings.NY_STRINGS
+                         * settings.DOMS_PER_STRING])
 
         hitlist = tf.reduce_sum(tf.where(hit_mask,
                                          p_exp,

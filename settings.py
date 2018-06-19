@@ -8,17 +8,16 @@ RANDOM_SEED = False  # seed or False
 # --------------------------------- Detector ----------------------------------
 LENGTH_X = 100  # m
 LENGTH_Y = 100  # m
-LENGTH_Z = 100  # m
-DOM_RADIUS = 5  # m
-DOMS_PER_STRING = 3
+LENGTH_Z = 1000  # m
+DOM_RADIUS = 2.5  # m
+DOMS_PER_STRING = 10
 NX_STRINGS = 3
 NY_STRINGS = 3
 
 # ----------------------------------- Ice -------------------------------------
-L_ABS_TRUE = 100
+L_ABS_TRUE = [100 + (-1)**i*i for i in range(10)]
+L_ABS_START = [100]*10
 L_SCAT_TRUE = 25
-L_ABS_START = 80
-# L_SCAT_START = 25
 
 # ------------------------------- Propagation ---------------------------------
 # Maximum travel distance to propagete before cutoff, must be set
@@ -31,13 +30,13 @@ CUTOFF_RADIUS = 1.1
 
 # --------------------------------- Training ----------------------------------
 MAX_STEPS = 100000000
-BATCHES_PER_STEP = 20
+BATCHES_PER_STEP = 1
 BATCH_SIZE = 50000
 # each cascades contains BATCH_SIZE*BATCHES_PER_STEP/CASCADES_PER_STEP photons
-CASCADES_PER_STEP = 50
+CASCADES_PER_STEP = 1
 
 # -------------------------------- Optimizer ----------------------------------
-INITIAL_LEARNING_RATE = 1
+INITIAL_LEARNING_RATE = 5
 # True or False to activate/deactivate learning rate decay
 LEARNING_DECAY = False
 # Decay modes: Linear or Exponential

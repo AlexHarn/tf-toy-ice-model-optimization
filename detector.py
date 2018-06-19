@@ -64,8 +64,6 @@ class Detector:
         Scale factors t so that r + d*v*t are the points of the hits. Or one
         where no hit occurs.
         """
-        # expand vectors to shape [batch, dom, coordinate]
-        # TODO: Maybe change these vectors to this dimension in all methods?
         v_exp = tf.expand_dims(v, axis=1)
         r_exp = tf.expand_dims(r, axis=1)
         d_exp = tf.expand_dims(d, axis=1)
@@ -83,8 +81,6 @@ class Detector:
         ds_exp = tf.norm(-diff_doms_r + v_exp*ts_exp, axis=2, keep_dims=True)
 
         # remove last dimension again
-        # TODO: possibly make all vectors have shape [batch, dom, coordinate]
-        # that way expanding and squeezing can be avoided
         ds = tf.squeeze(ds_exp, axis=2)
         ts = tf.squeeze(ts_exp, axis=2)/d_exp
 
@@ -109,8 +105,6 @@ class Detector:
         The DOM hitlist which contains a TF variable for each DOM as a measure
         for the number of photons that ended up inside the DOM.
         """
-        # TODO: change vectors to dimension [batch, dom, coordinate] get rid of
-        # expand and squeeze
         final_positions_exp = tf.expand_dims(final_positions, axis=1)
 
         # calculate distances of every photon to every DOM
@@ -135,8 +129,6 @@ class Detector:
         The DOM hitlist which contains the number of hits for each DOM as a TF
         variable.
         """
-        # TODO: change vectors to dimension [batch, dom, coordinate] get rid of
-        # expand and squeeze
         final_positions_exp = tf.expand_dims(final_positions, axis=1)
 
         # calculate distances of every photon to every DOM
@@ -165,8 +157,6 @@ class Detector:
         -------
         The expected hits for each DOM. TF Tensor of shape (DOMS,).
         """
-        # TODO: change vectors to dimension [batch, dom, coordinate] get rid of
-        # expand and squeeze
         final_positions_exp = tf.expand_dims(final_positions, axis=1)
 
         # calculate distances of every photon to every DOM
@@ -209,8 +199,6 @@ class Detector:
         -------
         The sampled hits for each DOM. TF Tensor of shape (DOMS,).
         """
-        # TODO: change vectors to dimension [batch, dom, coordinate] get rid of
-        # expand and squeeze
         final_positions_exp = tf.expand_dims(final_positions, axis=1)
 
         # calculate distances of every photon to every DOM
@@ -220,11 +208,17 @@ class Detector:
         # calculate hit probability p for each photon, which is the 1 - p_abs
         # where p_abs is the probability for the photon to be absorbed at a
         # distance smaller than the traveled distance before it hit the DOM
-        p = tf.exp(-1./ice.l_abs*traveled_distances)
+        p = tf.exp(-tf.reduce_sum(
+            1./tf.expand_dims(ice.l_abs, 0)*traveled_distances,
+            axis=1))
         z = tf.distributions.Uniform().sample(settings.BATCH_SIZE)
         hits = tf.where(z < p, tf.ones_like(p), tf.zeros_like(p))
 
-        hits_exp = tf.tile(tf.expand_dims(hits, axis=1), [1, 27])
+        hits_exp = tf.tile(tf.expand_dims(hits, axis=1),
+                           [1,
+                            settings.NX_STRINGS
+                            * settings.NY_STRINGS
+                            * settings.DOMS_PER_STRING])
 
         hitlist = tf.reduce_sum(tf.where(hit_mask,
                                          hits_exp,

@@ -36,9 +36,9 @@ model_true = Model(ice_true, detector)
 model_pred = Model(ice_pred, detector)
 
 # define hitlists
-hits_true = detector.tf_expected_hits(model_true.final_positions,
-                                      model_true.traveled_layer_distance,
-                                      ice_true)
+hits_true = detector.tf_sample_hits(model_true.final_positions,
+                                    model_true.traveled_layer_distance,
+                                    ice_true)
 hits_pred = detector.tf_expected_hits(model_pred.final_positions,
                                       model_pred.traveled_layer_distance,
                                       ice_pred)

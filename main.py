@@ -121,8 +121,8 @@ if __name__ == '__main__':
     # --------------------------------- Run -----------------------------------
     # initialize the logger
     logger = Logger(logdir='./log/', overwrite=True)
-    logger.register_variables(['loss', *['l_abs_pred_{}'.format(i) for i in
-                                         range(len(settings.L_ABS_TRUE))]],
+    logger.register_variables(['loss'] + ['l_abs_pred_{}'.format(i) for i in
+                                          range(len(settings.L_ABS_TRUE))],
                               print_all=True)
 
     logger.message("Starting...")
@@ -144,7 +144,7 @@ if __name__ == '__main__':
 
         # get updated parameters
         result = session.run([average_loss, ice_pred.l_abs])
-        logger.log(step, [result[0], *result[1]])
+        logger.log(step, [result[0]] + result[1].tolist())
 
         # reset variables for next step
         session.run([reset_gradients, reset_loss])

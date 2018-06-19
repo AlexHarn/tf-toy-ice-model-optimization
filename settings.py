@@ -15,7 +15,7 @@ NX_STRINGS = 3
 NY_STRINGS = 3
 
 # ----------------------------------- Ice -------------------------------------
-L_ABS_TRUE = [100 + (-1)**i*i for i in range(10)]
+L_ABS_TRUE = [50 + 10*i for i in range(10)]
 L_ABS_START = [100]*10
 L_SCAT_TRUE = 25
 
@@ -31,12 +31,12 @@ CUTOFF_RADIUS = 1.1
 # --------------------------------- Training ----------------------------------
 MAX_STEPS = 100000000
 BATCHES_PER_STEP = 1
-BATCH_SIZE = 50000
+BATCH_SIZE = 1000000
 # each cascades contains BATCH_SIZE*BATCHES_PER_STEP/CASCADES_PER_STEP photons
-CASCADES_PER_STEP = 1
+CASCADES_PER_STEP = 10
 
 # -------------------------------- Optimizer ----------------------------------
-INITIAL_LEARNING_RATE = 5
+INITIAL_LEARNING_RATE = 1
 # True or False to activate/deactivate learning rate decay
 LEARNING_DECAY = False
 # Decay modes: Linear or Exponential

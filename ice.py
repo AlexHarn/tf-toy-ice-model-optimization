@@ -98,7 +98,7 @@ class Ice:
         TF Tensor of shape(?, N_layers) where each entry is the traveled
         distance of the corresponding photon in the corresponding layer.
         """
-        # grab z coordinates from start and end vectors
+        # grab z coordinates from start and end vectors, make sure z_0 < z_1
         z_0 = tf.where(r_0[:, 2] < r_1[:, 2], r_0[:, 2], r_1[:, 2])
         z_1 = tf.where(r_0[:, 2] > r_1[:, 2], r_0[:, 2], r_1[:, 2])
 
@@ -137,4 +137,8 @@ class Ice:
             tf.logical_and(tf.logical_and(z_l < z_0, z_h > z_0),
                            tf.logical_and(z_l < z_1, z_h > z_1)),
             tf.tile(tf.expand_dims(d, 1), [1, self.N_layer]), d_layer)
+
+        # quick & dirty nan protection...
+        d_layer = tf.where(tf.is_nan(d_layer), tf.zeros_like(d_layer), d_layer)
+
         return d_layer

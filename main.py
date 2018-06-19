@@ -128,9 +128,9 @@ if __name__ == '__main__':
     logger.message("Starting...")
     for step in range(1, settings.MAX_STEPS + 1):
         # sample cascade positions for this step
-        r_cascades = [[np.random.uniform(high=100),
-                       np.random.uniform(high=100),
-                       np.random.uniform(high=100)]
+        r_cascades = [[settings.LENGTH_X/2,
+                       settings.LENGTH_Y/2,
+                       np.random.uniform(high=settings.LENGTH_Z)]
                       for i in range(settings.CASCADES_PER_STEP)]
 
         # propagate in batches

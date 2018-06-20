@@ -9,6 +9,9 @@ from model import Model
 from logger import Logger
 import settings
 
+# import os
+# os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+
 # ------------------------------ Initialization -------------------------------
 # set random seeds
 if settings.RANDOM_SEED:

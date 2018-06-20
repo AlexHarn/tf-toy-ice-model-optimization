@@ -63,9 +63,8 @@ class Logger:
             try:
                 with open(logdir+'version.log', 'w') as version_logfile:
                     version_logfile.write(version_log)
-            except Exception:
-                print("Logger could not write to file!")
-                pass
+            except Exception as e:
+                self.message("Logger could not write to file: " + str(e))
 
         # start writing into the buffer
         self._session_buffer = "Starting at " \
@@ -127,9 +126,8 @@ class Logger:
             store.append('Variables', self._data_buffer, format='t',
                          data_columns=True)
             store.close()
-        except Exception:
-            print("Logger could not write to file!")
-            pass
+        except Exception as e:
+            self.message("Logger could not write to file:", str(e))
 
         # reset the data buffer TODO: better way?
         self._data_buffer = pd.DataFrame(columns=self._variables)
@@ -137,8 +135,7 @@ class Logger:
     # -------------------- Public Logging Methods -----------------------------
     def log(self, step, variables, printing=True):
         """
-        Very basic and specialized logging method, no time left for today but
-        this will be greatly improved.
+        Very basic and specialized logging method.
 
         Parameters
         ----------
@@ -157,7 +154,7 @@ class Logger:
                                            "registered variables")
 
         session_time = datetime.utcnow() - self._start_time
-        hours, remainder = divmod(session_time.seconds, 3600)
+        hours, remainder = divmod(int(session_time.total_seconds()), 3600)
         minutes, seconds = divmod(remainder, 60)
 
         line = ("[{:02d}:{:02d}:{:02d} {:08d}]").format(

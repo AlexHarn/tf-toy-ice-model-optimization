@@ -9,9 +9,6 @@ from model import Model
 from logger import Logger
 import settings
 
-# import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "1"
-
 # ------------------------------ Initialization -------------------------------
 # set random seeds
 if settings.RANDOM_SEED:
@@ -45,10 +42,15 @@ hits_true = detector.tf_sample_hits(model_true.final_positions,
 hits_pred = detector.tf_expected_hits(model_pred.final_positions,
                                       model_pred.traveled_layer_distance,
                                       ice_pred)
+# Dimas likelihood
+mu = (hits_pred + hits_true)/2
+F_doms = hits_pred*(tf.log(mu) - tf.log(hits_pred)) + \
+    hits_true*(tf.log(mu) - tf.log(hits_true))
+
+F = tf.reduce_sum(tf.where(tf.is_nan(F_doms), tf.zeros_like(F_doms), F_doms))
 
 # define loss
-loss = tf.reduce_sum(tf.squared_difference(tf.log(hits_true + 1),
-                                           tf.log(hits_pred + 1)))
+loss = -F
 
 # crate variable for learning rate
 tf_learning_rate = tf.Variable(settings.INITIAL_LEARNING_RATE,
@@ -129,6 +131,7 @@ if __name__ == '__main__':
                               print_all=True)
 
     logger.message("Starting...")
+
     for step in range(1, settings.MAX_STEPS + 1):
         # sample cascade positions for this step
         r_cascades = [[settings.LENGTH_X/2,

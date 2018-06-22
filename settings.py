@@ -15,8 +15,9 @@ NX_STRINGS = 3
 NY_STRINGS = 3
 
 # ----------------------------------- Ice -------------------------------------
-L_ABS_TRUE = [50 + 10*i for i in range(10)]
-L_ABS_START = [100]*10
+L_ABS_TRUE = [100, 50, 100]
+N_LAYER = len(L_ABS_TRUE)
+L_ABS_START = [80]*N_LAYER
 L_SCAT_TRUE = 25
 
 # ------------------------------- Propagation ---------------------------------

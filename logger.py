@@ -161,7 +161,10 @@ class Logger:
             hours, minutes, seconds, step)
         for i, value in enumerate(variables):
             if self._variables[i] in self._print_variables:
-                line += " {}: {:2.3f}".format(self._variables[i], value)
+                if value > 1:
+                    line += " {}: {:1.3f}".format(self._variables[i], value)
+                else:
+                    line += " {}: {:1.3e}".format(self._variables[i], value)
         line += '\n'
 
         # append row to data buffer

@@ -140,13 +140,20 @@ if __name__ == '__main__':
                       for i in range(settings.CASCADES_PER_STEP)]
 
         # propagate in batches
-        for i in trange(settings.BATCHES_PER_STEP, leave=False):
-            session.run(propagate_batch[i],
+        for batch in trange(settings.BATCHES_PER_STEP, leave=False):
+            session.run(propagate_batch[batch],
                         feed_dict={model_true.r_cascades: r_cascades,
                                    model_pred.r_cascades: r_cascades})
 
-        # compute and apply gradients and get the loss
-        step_loss = session.run([optimize, loss])[1]
+        # compute and apply gradients and get the loss with this data
+        optimizer_step_loss = np.zeros(settings.OPTIMIZER_STEPS_PER_SIMULATION)
+        for optimizer_step in trange(settings.OPTIMIZER_STEPS_PER_SIMULATION,
+                                     leave=False):
+            optimizer_step_loss[optimizer_step] = \
+                session.run([optimize, loss])[1]
+
+        # calculate average loss
+        step_loss = np.mean(optimizer_step_loss)
 
         # get updated parameters
         result = session.run(ice_pred.l_abs)

@@ -15,7 +15,7 @@ NX_STRINGS = 3
 NY_STRINGS = 3
 
 # ----------------------------------- Ice -------------------------------------
-L_ABS_TRUE = [50 + 10*i for i in range(10)]
+L_ABS_TRUE = [100, 90, 110, 105, 99, 102, 104, 50, 98, 115]
 N_LAYER = len(L_ABS_TRUE)
 L_ABS_START = [100]*N_LAYER
 L_SCAT_TRUE = 25
@@ -30,14 +30,21 @@ CUTOFF_DISTANCE = 1000.
 CUTOFF_RADIUS = 1.1
 
 # --------------------------------- Training ----------------------------------
+# One step includes one simulation of CASCADES_PER_STEP cascades which is
+# fragmented into BATCHES_PER_STEP batches. Each batch contains BATCH_SIZE
+# photons.
+# So each cascade contains BATCH_SIZE*BATCHES_PER_STEP/CASCADES_PER_STEP
+# photons.
 MAX_STEPS = 100000000
-BATCHES_PER_STEP = 20
+BATCHES_PER_STEP = 200
 BATCH_SIZE = 50000
-# each cascades contains BATCH_SIZE*BATCHES_PER_STEP/CASCADES_PER_STEP photons
-CASCADES_PER_STEP = 10
+CASCADES_PER_STEP = 100
 
 # -------------------------------- Optimizer ----------------------------------
-INITIAL_LEARNING_RATE = 1
+# How many times to reuse the same data for optimization
+OPTIMIZER_STEPS_PER_SIMULATION = 1000
+# The initial learning rate
+INITIAL_LEARNING_RATE = 0.1
 # True or False to activate/deactivate learning rate decay
 LEARNING_DECAY = False
 # Decay modes: Linear or Exponential

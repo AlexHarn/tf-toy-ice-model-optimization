@@ -35,22 +35,44 @@ detector = Detector(dom_radius=settings.DOM_RADIUS,
 model_true = Model(ice_true, detector)
 model_pred = Model(ice_pred, detector)
 
+# save final positions and traveled layer distances as variables for each batch
+final_positions_true = []
+final_positions_pred = []
+traveled_layer_distance_true = []
+traveled_layer_distance_pred = []
+
+for i in range(settings.BATCHES_PER_STEP):
+    final_positions_true.append(tf.Variable(
+        tf.zeros((settings.BATCH_SIZE, 3), dtype=settings.FLOAT_PRECISION)))
+    final_positions_pred.append(tf.Variable(
+        tf.zeros((settings.BATCH_SIZE, 3), dtype=settings.FLOAT_PRECISION)))
+
+    traveled_layer_distance_true.append(tf.Variable(
+        tf.zeros((settings.BATCH_SIZE, settings.N_LAYER),
+                 dtype=settings.FLOAT_PRECISION)))
+    traveled_layer_distance_pred.append(tf.Variable(
+        tf.zeros((settings.BATCH_SIZE, settings.N_LAYER),
+                 dtype=settings.FLOAT_PRECISION)))
+
 # define hitlists
-hits_true = detector.tf_sample_hits(model_true.final_positions,
-                                    model_true.traveled_layer_distance,
-                                    ice_true)
-hits_pred = detector.tf_expected_hits(model_pred.final_positions,
-                                      model_pred.traveled_layer_distance,
-                                      ice_pred)
-# Dimas likelihood
-mu = (hits_pred + hits_true)/2
-F_doms = hits_pred*(tf.log(mu) - tf.log(hits_pred)) + \
-    hits_true*(tf.log(mu) - tf.log(hits_true))
+hits_true = detector.tf_sample_hits(
+    tf.concat(final_positions_true, 0),
+    tf.concat(traveled_layer_distance_true, 0),
+    ice_true)
 
-F = tf.reduce_sum(tf.where(tf.is_nan(F_doms), tf.zeros_like(F_doms), F_doms))
+hits_pred = detector.tf_expected_hits(
+    tf.concat(final_positions_pred, 0),
+    tf.concat(traveled_layer_distance_pred, 0),
+    ice_pred)
 
-# define loss
-loss = -F
+# Dimas likelihood, take the logarithm for stability
+mu = (hits_pred + hits_true)/(2*settings.BATCHES_PER_STEP)
+logLR_doms = hits_pred*(
+    tf.log(mu) - tf.log(hits_pred/settings.BATCHES_PER_STEP)) + \
+    hits_true*(tf.log(mu) - tf.log(hits_true/settings.BATCHES_PER_STEP))
+
+loss = -tf.reduce_sum(tf.where(tf.is_nan(logLR_doms),
+                               tf.zeros_like(logLR_doms), logLR_doms))
 
 # crate variable for learning rate
 tf_learning_rate = tf.Variable(settings.INITIAL_LEARNING_RATE,
@@ -77,41 +99,20 @@ elif settings.OPTIMIZER == 'GradientDescent':
 else:
     raise ValueError(settings.OPTIMIZER+" is not a supported optimizer!")
 
+# create operation to minimize the loss
+optimize = optimizer.minimize(loss)
+
 # grab all trainable variables
 trainable_variables = tf.trainable_variables()
 
-# define variables to save the gradients in each batch
-accumulated_gradients = [tf.Variable(tf.zeros_like(tv.initialized_value()),
-                                     trainable=False) for tv in
-                         trainable_variables]
-
-# define operation to reset the accumulated gradients to zero
-reset_gradients = [gradient.assign(tf.zeros_like(gradient)) for gradient in
-                   accumulated_gradients]
-
-# define the gradients
-gradients = optimizer.compute_gradients(loss, trainable_variables)
-
-# Note: Gradients is a list of tuples containing the gradient and the
-# corresponding variable so gradient[0] is the actual gradient. Also divide
-# the gradients by BATCHES_PER_STEP so the learning rate still refers to
-# steps not batches.
-
-# define operation to propagate a batch and accumulating the gradients
-propagate_batch = [
-    accumulated_gradient.assign_add(gradient[0]/settings.BATCHES_PER_STEP)
-    for accumulated_gradient, gradient in zip(accumulated_gradients,
-                                              gradients)]
-
-# define operation to apply the gradients
-apply_gradients = optimizer.apply_gradients([
-    (accumulated_gradient, gradient[1]) for accumulated_gradient, gradient
-    in zip(accumulated_gradients, gradients)])
-
-# define variable and operations to track the average batch loss
-average_loss = tf.Variable(0., trainable=False)
-update_loss = average_loss.assign_add(loss/settings.BATCHES_PER_STEP)
-reset_loss = average_loss.assign(0.)
+# define operations to propagate each batch
+propagate_batch = [[final_positions_true[i].assign(model_true.final_positions),
+                    final_positions_pred[i].assign(model_pred.final_positions),
+                    traveled_layer_distance_true[i].assign(
+                        model_true.traveled_layer_distance),
+                    traveled_layer_distance_pred[i].assign(
+                        model_pred.traveled_layer_distance)]
+                   for i in range(settings.BATCHES_PER_STEP)]
 
 if __name__ == '__main__':
     if settings.CPU_ONLY:
@@ -129,7 +130,6 @@ if __name__ == '__main__':
     logger.register_variables(['loss'] + ['l_abs_pred_{}'.format(i) for i in
                                           range(len(settings.L_ABS_TRUE))],
                               print_all=True)
-
     logger.message("Starting...")
 
     for step in range(1, settings.MAX_STEPS + 1):
@@ -141,19 +141,16 @@ if __name__ == '__main__':
 
         # propagate in batches
         for i in trange(settings.BATCHES_PER_STEP, leave=False):
-            session.run([propagate_batch, update_loss],
+            session.run(propagate_batch[i],
                         feed_dict={model_true.r_cascades: r_cascades,
                                    model_pred.r_cascades: r_cascades})
 
-        # apply accumulated gradients
-        session.run(apply_gradients)
+        # compute and apply gradients and get the loss
+        step_loss = session.run([optimize, loss])[1]
 
         # get updated parameters
-        result = session.run([average_loss, ice_pred.l_abs])
-        logger.log(step, [result[0]] + result[1].tolist())
-
-        # reset variables for next step
-        session.run([reset_gradients, reset_loss])
+        result = session.run(ice_pred.l_abs)
+        logger.log(step, [step_loss] + result.tolist())
 
         if step % settings.WRITE_INTERVAL == 0:
             logger.write()

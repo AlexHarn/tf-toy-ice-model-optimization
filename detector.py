@@ -211,7 +211,8 @@ class Detector:
         p = tf.exp(-tf.reduce_sum(
             1./tf.expand_dims(ice.l_abs, 0)*traveled_distances,
             axis=1))
-        z = tf.distributions.Uniform().sample(settings.BATCH_SIZE)
+        z = tf.distributions.Uniform().sample(
+            settings.BATCHES_PER_STEP*settings.BATCH_SIZE)
         hits = tf.where(z < p, tf.ones_like(p), tf.zeros_like(p))
 
         hits_exp = tf.tile(tf.expand_dims(hits, axis=1),
